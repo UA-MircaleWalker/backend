@@ -1,0 +1,10 @@
+go 1.24
+
+use (
+    ./shared
+    ./services/card-service
+    ./services/user-service
+    ./services/matchmaking-service
+    ./services/game-battle-service
+    ./services/game-result-service
+)
