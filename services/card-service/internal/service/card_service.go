@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"ua/shared/models"
 	"ua/services/card-service/internal/repository"
+	"ua/shared/models"
 )
 
 type CardService interface {
@@ -30,36 +30,36 @@ type CardService interface {
 }
 
 type CreateCardRequest struct {
-	CardNumber      string                 `json:"card_number" validate:"required"`
-	Name            string                 `json:"name" validate:"required"`
-	CardType        string                 `json:"card_type" validate:"required"`
-	WorkCode        string                 `json:"work_code" validate:"required"`
-	BP              *int                   `json:"bp"`
-	APCost          int                    `json:"ap_cost"`
-	EnergyCost      map[string]int         `json:"energy_cost"`
-	EnergyProduce   map[string]int         `json:"energy_produce"`
-	Rarity          string                 `json:"rarity" validate:"required"`
-	Characteristics []string               `json:"characteristics"`
-	EffectText      string                 `json:"effect_text"`
-	TriggerEffect   []models.CardEffect    `json:"trigger_effect"`
-	Keywords        []string               `json:"keywords"`
-	ImageURL        string                 `json:"image_url"`
+	CardNumber      string              `json:"card_number" validate:"required"`
+	Name            string              `json:"name" validate:"required"`
+	CardType        string              `json:"card_type" validate:"required"`
+	WorkCode        string              `json:"work_code" validate:"required"`
+	BP              *int                `json:"bp"`
+	APCost          int                 `json:"ap_cost"`
+	EnergyCost      map[string]int      `json:"energy_cost"`
+	EnergyProduce   map[string]int      `json:"energy_produce"`
+	Rarity          string              `json:"rarity" validate:"required"`
+	Characteristics []string            `json:"characteristics"`
+	EffectText      string              `json:"effect_text"`
+	TriggerEffect   []models.CardEffect `json:"trigger_effect"`
+	Keywords        []string            `json:"keywords"`
+	ImageURL        string              `json:"image_url"`
 }
 
 type UpdateCardRequest struct {
-	Name            *string             `json:"name"`
-	CardType        *string             `json:"card_type"`
-	WorkCode        *string             `json:"work_code"`
-	BP              *int                `json:"bp"`
-	APCost          *int                `json:"ap_cost"`
-	EnergyCost      *map[string]int     `json:"energy_cost"`
-	EnergyProduce   *map[string]int     `json:"energy_produce"`
-	Rarity          *string             `json:"rarity"`
-	Characteristics *[]string           `json:"characteristics"`
-	EffectText      *string             `json:"effect_text"`
+	Name            *string              `json:"name"`
+	CardType        *string              `json:"card_type"`
+	WorkCode        *string              `json:"work_code"`
+	BP              *int                 `json:"bp"`
+	APCost          *int                 `json:"ap_cost"`
+	EnergyCost      *map[string]int      `json:"energy_cost"`
+	EnergyProduce   *map[string]int      `json:"energy_produce"`
+	Rarity          *string              `json:"rarity"`
+	Characteristics *[]string            `json:"characteristics"`
+	EffectText      *string              `json:"effect_text"`
 	TriggerEffect   *[]models.CardEffect `json:"trigger_effect"`
-	Keywords        *[]string           `json:"keywords"`
-	ImageURL        *string             `json:"image_url"`
+	Keywords        *[]string            `json:"keywords"`
+	ImageURL        *string              `json:"image_url"`
 }
 
 type ListCardsRequest struct {
@@ -78,32 +78,32 @@ type ListCardsRequest struct {
 }
 
 type DeckValidationResult struct {
-	IsValid    bool                `json:"is_valid"`
-	Errors     []string           `json:"errors"`
-	Warnings   []string           `json:"warnings"`
-	CardCount  int                `json:"card_count"`
-	WorkBreakdown map[string]int  `json:"work_breakdown"`
-	TypeBreakdown map[string]int  `json:"type_breakdown"`
+	IsValid       bool           `json:"is_valid"`
+	Errors        []string       `json:"errors"`
+	Warnings      []string       `json:"warnings"`
+	CardCount     int            `json:"card_count"`
+	WorkBreakdown map[string]int `json:"work_breakdown"`
+	TypeBreakdown map[string]int `json:"type_breakdown"`
 }
 
 type CardRulesEngine struct {
-	Card        *models.Card      `json:"card"`
-	Effects     []models.CardEffect `json:"effects"`
-	Keywords    []KeywordRule     `json:"keywords"`
-	Restrictions []PlayRestriction `json:"restrictions"`
+	Card         *models.Card        `json:"card"`
+	Effects      []models.CardEffect `json:"effects"`
+	Keywords     []KeywordRule       `json:"keywords"`
+	Restrictions []PlayRestriction   `json:"restrictions"`
 }
 
 type KeywordRule struct {
 	Keyword     string                 `json:"keyword"`
 	Description string                 `json:"description"`
 	Parameters  map[string]interface{} `json:"parameters"`
-	Conditions  []RuleCondition       `json:"conditions"`
+	Conditions  []RuleCondition        `json:"conditions"`
 }
 
 type PlayRestriction struct {
-	Type        string                 `json:"type"`
-	Condition   map[string]interface{} `json:"condition"`
-	Message     string                 `json:"message"`
+	Type      string                 `json:"type"`
+	Condition map[string]interface{} `json:"condition"`
+	Message   string                 `json:"message"`
 }
 
 type RuleCondition struct {
@@ -113,30 +113,30 @@ type RuleCondition struct {
 }
 
 type ValidateCardPlayRequest struct {
-	CardID      uuid.UUID              `json:"card_id"`
-	PlayerID    uuid.UUID              `json:"player_id"`
-	GameState   *models.GameState      `json:"game_state"`
-	TargetID    *uuid.UUID             `json:"target_id"`
-	Position    *models.Position       `json:"position"`
-	Additional  map[string]interface{} `json:"additional"`
+	CardID     uuid.UUID              `json:"card_id"`
+	PlayerID   uuid.UUID              `json:"player_id"`
+	GameState  *models.GameState      `json:"game_state"`
+	TargetID   *uuid.UUID             `json:"target_id"`
+	Position   *models.Position       `json:"position"`
+	Additional map[string]interface{} `json:"additional"`
 }
 
 type CardPlayValidation struct {
-	IsValid      bool                   `json:"is_valid"`
-	Errors       []string               `json:"errors"`
-	Warnings     []string               `json:"warnings"`
-	RequiredAP   int                    `json:"required_ap"`
-	RequiredEnergy map[string]int       `json:"required_energy"`
-	Effects      []models.CardEffect    `json:"effects"`
-	Targets      []uuid.UUID            `json:"valid_targets"`
+	IsValid        bool                `json:"is_valid"`
+	Errors         []string            `json:"errors"`
+	Warnings       []string            `json:"warnings"`
+	RequiredAP     int                 `json:"required_ap"`
+	RequiredEnergy map[string]int      `json:"required_energy"`
+	Effects        []models.CardEffect `json:"effects"`
+	Targets        []uuid.UUID         `json:"valid_targets"`
 }
 
 type CardBalanceAdjustment struct {
-	BP           *int               `json:"bp"`
-	APCost       *int               `json:"ap_cost"`
-	EnergyCost   *map[string]int    `json:"energy_cost"`
+	BP           *int                    `json:"bp"`
+	APCost       *int                    `json:"ap_cost"`
+	EnergyCost   *map[string]int         `json:"energy_cost"`
 	EffectValues *map[string]interface{} `json:"effect_values"`
-	Reason       string             `json:"reason"`
+	Reason       string                  `json:"reason"`
 }
 
 type cardService struct {

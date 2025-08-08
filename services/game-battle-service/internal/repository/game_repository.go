@@ -124,7 +124,7 @@ func (r *gameRepository) UpdateGame(ctx context.Context, game *models.Game) erro
 
 func (r *gameRepository) SaveGameState(ctx context.Context, gameID uuid.UUID, gameState *models.GameState) error {
 	gameStateKey := fmt.Sprintf("game:%s:state", gameID.String())
-	
+
 	gameStateJSON, err := json.Marshal(gameState)
 	if err != nil {
 		return fmt.Errorf("failed to marshal game state: %w", err)
@@ -145,7 +145,7 @@ func (r *gameRepository) SaveGameState(ctx context.Context, gameID uuid.UUID, ga
 
 func (r *gameRepository) LoadGameState(ctx context.Context, gameID uuid.UUID) (*models.GameState, error) {
 	gameStateKey := fmt.Sprintf("game:%s:state", gameID.String())
-	
+
 	gameStateJSON, err := r.redis.Get(ctx, gameStateKey).Result()
 	if err == nil {
 		var gameState models.GameState
@@ -173,13 +173,14 @@ func (r *gameRepository) LoadGameState(ctx context.Context, gameID uuid.UUID) (*
 
 func (r *gameRepository) AddAction(ctx context.Context, gameID uuid.UUID, action *models.GameAction) error {
 	actionsKey := fmt.Sprintf("game:%s:actions", gameID.String())
-	
+
 	actionJSON, err := json.Marshal(action)
 	if err != nil {
 		return fmt.Errorf("failed to marshal action: %w", err)
 	}
 
-	if err := r.redis.LPush(ctx, actionsKey, actionJSON).Err(); err != nil {
+	err = r.redis.LPush(ctx, actionsKey, actionJSON)
+	if err != nil {
 		return fmt.Errorf("failed to add action to Redis: %w", err)
 	}
 
@@ -204,8 +205,8 @@ func (r *gameRepository) AddAction(ctx context.Context, gameID uuid.UUID, action
 
 func (r *gameRepository) GetActions(ctx context.Context, gameID uuid.UUID, fromIndex int) ([]*models.GameAction, error) {
 	actionsKey := fmt.Sprintf("game:%s:actions", gameID.String())
-	
-	actionsJSON, err := r.redis.LRange(ctx, actionsKey, int64(fromIndex), -1).Result()
+
+	actionsJSON, err := r.redis.LRange(ctx, actionsKey, int64(fromIndex), -1)
 	if err == nil && len(actionsJSON) > 0 {
 		var actions []*models.GameAction
 		for _, actionStr := range actionsJSON {

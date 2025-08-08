@@ -7,10 +7,11 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/google/uuid"
-	"github.com/redis/go-redis/v9"
 	"ua/shared/models"
 	redisClient "ua/shared/redis"
+
+	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 )
 
 type MatchmakingRepository interface {
@@ -27,11 +28,11 @@ type MatchmakingRepository interface {
 }
 
 type QueueStatus struct {
-	UserID       uuid.UUID `json:"user_id"`
-	Mode         string    `json:"mode"`
-	Position     int       `json:"position"`
+	UserID        uuid.UUID `json:"user_id"`
+	Mode          string    `json:"mode"`
+	Position      int       `json:"position"`
 	EstimatedWait int       `json:"estimated_wait_seconds"`
-	JoinedAt     time.Time `json:"joined_at"`
+	JoinedAt      time.Time `json:"joined_at"`
 }
 
 type MatchCandidate struct {
@@ -50,16 +51,16 @@ type Match struct {
 }
 
 type MatchHistory struct {
-	MatchID   uuid.UUID  `json:"match_id"`
+	MatchID    uuid.UUID `json:"match_id"`
 	OpponentID uuid.UUID `json:"opponent_id"`
-	Mode      string     `json:"mode"`
-	Result    string     `json:"result"`
-	CreatedAt time.Time  `json:"created_at"`
+	Mode       string    `json:"mode"`
+	Result     string    `json:"result"`
+	CreatedAt  time.Time `json:"created_at"`
 }
 
 type QueueStats struct {
-	RankedQueue  int `json:"ranked_queue"`
-	CasualQueue  int `json:"casual_queue"`
+	RankedQueue   int `json:"ranked_queue"`
+	CasualQueue   int `json:"casual_queue"`
 	ActiveMatches int `json:"active_matches"`
 }
 
@@ -72,13 +73,13 @@ func NewMatchmakingRepository(redis *redisClient.Client) MatchmakingRepository {
 }
 
 const (
-	queueKeyPrefix        = "matchmaking:queue:"
-	userStatusKeyPrefix   = "matchmaking:user:"
-	matchKeyPrefix        = "matchmaking:match:"
-	historyKeyPrefix      = "matchmaking:history:"
-	queueTimeout          = 300 // 5 minutes
-	rankedRankDiffLimit   = 200
-	casualRankDiffLimit   = 500
+	queueKeyPrefix      = "matchmaking:queue:"
+	userStatusKeyPrefix = "matchmaking:user:"
+	matchKeyPrefix      = "matchmaking:match:"
+	historyKeyPrefix    = "matchmaking:history:"
+	queueTimeout        = 300 // 5 minutes
+	rankedRankDiffLimit = 200
+	casualRankDiffLimit = 500
 )
 
 func (r *matchmakingRepository) JoinQueue(ctx context.Context, req *models.MatchmakingRequest) error {
@@ -129,7 +130,7 @@ func (r *matchmakingRepository) LeaveQueue(ctx context.Context, userID uuid.UUID
 
 func (r *matchmakingRepository) GetQueueStatus(ctx context.Context, userID uuid.UUID) (*QueueStatus, error) {
 	userStatusKey := userStatusKeyPrefix + userID.String()
-	
+
 	reqData, err := r.redis.Get(ctx, userStatusKey).Result()
 	if err == redis.Nil {
 		return nil, fmt.Errorf("user not in queue")
@@ -149,7 +150,7 @@ func (r *matchmakingRepository) GetQueueStatus(ctx context.Context, userID uuid.
 		return nil, fmt.Errorf("failed to get queue position: %w", err)
 	}
 
-	queueSize, err := r.redis.ZCard(ctx, queueKey).Result()
+	_, err = r.redis.ZCard(ctx, queueKey).Result()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get queue size: %w", err)
 	}
@@ -207,7 +208,7 @@ func (r *matchmakingRepository) FindMatches(ctx context.Context, mode string, ma
 
 func (r *matchmakingRepository) CreateMatch(ctx context.Context, match *Match) error {
 	matchKey := matchKeyPrefix + match.ID.String()
-	
+
 	matchData, err := json.Marshal(match)
 	if err != nil {
 		return fmt.Errorf("failed to marshal match: %w", err)
@@ -306,7 +307,7 @@ func (r *matchmakingRepository) GetUserMatchHistory(ctx context.Context, userID 
 
 func (r *matchmakingRepository) GetQueueStats(ctx context.Context) (*QueueStats, error) {
 	pipe := r.redis.Pipeline()
-	
+
 	rankedCmd := pipe.ZCard(ctx, queueKeyPrefix+models.MatchModeRanked)
 	casualCmd := pipe.ZCard(ctx, queueKeyPrefix+models.MatchModeCasual)
 	activeCmd := pipe.ZCard(ctx, "matchmaking:active_matches")
@@ -333,7 +334,7 @@ func (r *matchmakingRepository) CleanupExpiredRequests(ctx context.Context) erro
 		expiredMembers, err := r.redis.ZRangeByScore(ctx, queueKey, &redis.ZRangeBy{
 			Min: "0",
 			Max: strconv.FormatFloat(expiredThreshold, 'f', 0, 64),
-		}).Result()
+		})
 		if err != nil {
 			continue
 		}

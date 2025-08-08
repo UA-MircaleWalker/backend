@@ -121,7 +121,7 @@ func setupRouter(cfg *config.Config, cardHandler *handler.CardHandler) *gin.Engi
 			cards.GET("/search", cardHandler.SearchCards)
 			cards.GET("/work/:work_code", cardHandler.GetCardsByWork)
 			cards.GET("/:id/rules", cardHandler.GetCardRules)
-			
+
 			cards.POST("/validate-deck", cardHandler.ValidateDeck)
 			cards.POST("/validate-play", cardHandler.ValidateCardPlay)
 

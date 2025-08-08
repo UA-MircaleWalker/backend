@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 	"ua/services/matchmaking-service/internal/repository"
 	"ua/shared/logger"
 	"ua/shared/models"
-	"go.uber.org/zap"
 )
 
 type MatchmakingService interface {
@@ -33,18 +33,18 @@ type JoinQueueRequest struct {
 }
 
 type QueueJoinResponse struct {
-	Success      bool      `json:"success"`
-	Message      string    `json:"message"`
-	Position     int       `json:"position"`
+	Success       bool      `json:"success"`
+	Message       string    `json:"message"`
+	Position      int       `json:"position"`
 	EstimatedWait int       `json:"estimated_wait_seconds"`
-	JoinedAt     time.Time `json:"joined_at"`
+	JoinedAt      time.Time `json:"joined_at"`
 }
 
 type MatchmakingResults struct {
-	MatchesCreated int                        `json:"matches_created"`
-	PlayersMatched int                        `json:"players_matched"`
-	Matches        []*repository.Match        `json:"matches"`
-	RemovedExpired int                        `json:"removed_expired"`
+	MatchesCreated int                 `json:"matches_created"`
+	PlayersMatched int                 `json:"players_matched"`
+	Matches        []*repository.Match `json:"matches"`
+	RemovedExpired int                 `json:"removed_expired"`
 }
 
 type MatchFoundEvent struct {
@@ -147,7 +147,7 @@ func (s *matchmakingService) ProcessMatchmaking(ctx context.Context) (*Matchmaki
 	}
 
 	modes := []string{models.MatchModeRanked, models.MatchModeCasual}
-	
+
 	for _, mode := range modes {
 		candidates, err := s.repo.FindMatches(ctx, mode, 10)
 		if err != nil {
@@ -280,7 +280,7 @@ func (s *matchmakingService) StartPeriodicMatchmaking(ctx context.Context) error
 	}
 
 	s.matchmakingRunning = true
-	
+
 	go func() {
 		ticker := time.NewTicker(5 * time.Second)
 		defer ticker.Stop()

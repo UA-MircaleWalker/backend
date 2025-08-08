@@ -24,63 +24,63 @@ type ResultRepository interface {
 }
 
 type PlayerStats struct {
-	UserID          uuid.UUID `json:"user_id" db:"user_id"`
-	GamesPlayed     int       `json:"games_played" db:"games_played"`
-	GamesWon        int       `json:"games_won" db:"games_won"`
-	GamesLost       int       `json:"games_lost" db:"games_lost"`
-	WinRate         float64   `json:"win_rate" db:"win_rate"`
-	CurrentStreak   int       `json:"current_streak" db:"current_streak"`
-	BestStreak      int       `json:"best_streak" db:"best_streak"`
-	TotalGameTime   int       `json:"total_game_time" db:"total_game_time"`
-	AvgGameTime     int       `json:"avg_game_time" db:"avg_game_time"`
-	RankPoints      int       `json:"rank_points" db:"rank_points"`
-	PreviousRank    int       `json:"previous_rank" db:"previous_rank"`
-	CurrentRank     int       `json:"current_rank" db:"current_rank"`
-	LastPlayed      time.Time `json:"last_played" db:"last_played"`
-	UpdatedAt       time.Time `json:"updated_at" db:"updated_at"`
+	UserID        uuid.UUID `json:"user_id" db:"user_id"`
+	GamesPlayed   int       `json:"games_played" db:"games_played"`
+	GamesWon      int       `json:"games_won" db:"games_won"`
+	GamesLost     int       `json:"games_lost" db:"games_lost"`
+	WinRate       float64   `json:"win_rate" db:"win_rate"`
+	CurrentStreak int       `json:"current_streak" db:"current_streak"`
+	BestStreak    int       `json:"best_streak" db:"best_streak"`
+	TotalGameTime int       `json:"total_game_time" db:"total_game_time"`
+	AvgGameTime   int       `json:"avg_game_time" db:"avg_game_time"`
+	RankPoints    int       `json:"rank_points" db:"rank_points"`
+	PreviousRank  int       `json:"previous_rank" db:"previous_rank"`
+	CurrentRank   int       `json:"current_rank" db:"current_rank"`
+	LastPlayed    time.Time `json:"last_played" db:"last_played"`
+	UpdatedAt     time.Time `json:"updated_at" db:"updated_at"`
 }
 
 type LeaderboardEntry struct {
-	Rank         int                `json:"rank"`
-	User         *models.User       `json:"user"`
-	Stats        *PlayerStats       `json:"stats"`
-	RankChange   int                `json:"rank_change"`
+	Rank       int          `json:"rank"`
+	User       *models.User `json:"user"`
+	Stats      *PlayerStats `json:"stats"`
+	RankChange int          `json:"rank_change"`
 }
 
 type LeaderboardRequest struct {
-	Page         int    `json:"page"`
-	Limit        int    `json:"limit"`
-	TimeFrame    string `json:"time_frame"` // all, week, month
-	Mode         string `json:"mode"`       // ranked, casual, all
+	Page      int    `json:"page"`
+	Limit     int    `json:"limit"`
+	TimeFrame string `json:"time_frame"` // all, week, month
+	Mode      string `json:"mode"`       // ranked, casual, all
 }
 
 type MatchHistoryEntry struct {
-	GameResult   *models.GameResult `json:"game_result"`
-	Opponent     *models.User       `json:"opponent"`
-	OpponentStats *PlayerStats      `json:"opponent_stats"`
-	Duration     int                `json:"duration"`
-	TurnsPlayed  int                `json:"turns_played"`
-	CardsPlayed  int                `json:"cards_played"`
-	Result       string             `json:"result"` // won, lost, draw
+	GameResult    *models.GameResult `json:"game_result"`
+	Opponent      *models.User       `json:"opponent"`
+	OpponentStats *PlayerStats       `json:"opponent_stats"`
+	Duration      int                `json:"duration"`
+	TurnsPlayed   int                `json:"turns_played"`
+	CardsPlayed   int                `json:"cards_played"`
+	Result        string             `json:"result"` // won, lost, draw
 }
 
 type AnalyticsRequest struct {
-	StartDate   time.Time `json:"start_date"`
-	EndDate     time.Time `json:"end_date"`
-	PlayerID    *uuid.UUID `json:"player_id,omitempty"`
-	GameMode    string    `json:"game_mode,omitempty"`
+	StartDate time.Time  `json:"start_date"`
+	EndDate   time.Time  `json:"end_date"`
+	PlayerID  *uuid.UUID `json:"player_id,omitempty"`
+	GameMode  string     `json:"game_mode,omitempty"`
 }
 
 type GameAnalytics struct {
-	TotalGames      int                    `json:"total_games"`
-	TotalPlayers    int                    `json:"total_players"`
-	ActivePlayers   int                    `json:"active_players"`
-	AvgGameLength   int                    `json:"avg_game_length"`
-	PopularCards    []*CardUsageStats      `json:"popular_cards"`
-	WinRateByTurns  []*TurnWinRate         `json:"win_rate_by_turns"`
-	GamesByMode     map[string]int         `json:"games_by_mode"`
-	GamesByHour     map[int]int            `json:"games_by_hour"`
-	PlayerRetention *PlayerRetentionStats  `json:"player_retention"`
+	TotalGames      int                   `json:"total_games"`
+	TotalPlayers    int                   `json:"total_players"`
+	ActivePlayers   int                   `json:"active_players"`
+	AvgGameLength   int                   `json:"avg_game_length"`
+	PopularCards    []*CardUsageStats     `json:"popular_cards"`
+	WinRateByTurns  []*TurnWinRate        `json:"win_rate_by_turns"`
+	GamesByMode     map[string]int        `json:"games_by_mode"`
+	GamesByHour     map[int]int           `json:"games_by_hour"`
+	PlayerRetention *PlayerRetentionStats `json:"player_retention"`
 }
 
 type CardUsageStats struct {
@@ -224,8 +224,8 @@ func (r *resultRepository) GetPlayerStats(ctx context.Context, playerID uuid.UUI
 
 	if err == sql.ErrNoRows {
 		return &PlayerStats{
-			UserID:      playerID,
-			UpdatedAt:   time.Now(),
+			UserID:    playerID,
+			UpdatedAt: time.Now(),
 		}, nil
 	}
 	if err != nil {
@@ -330,7 +330,7 @@ func (r *resultRepository) updatePlayerStatsInTx(ctx context.Context, tx *sql.Tx
 
 func (r *resultRepository) GetLeaderboard(ctx context.Context, req *LeaderboardRequest) ([]*LeaderboardEntry, int64, error) {
 	whereClause := "WHERE ps.games_played > 0"
-	
+
 	if req.TimeFrame == "week" {
 		whereClause += " AND ps.last_played >= NOW() - INTERVAL '7 days'"
 	} else if req.TimeFrame == "month" {
@@ -539,7 +539,7 @@ func (r *resultRepository) RecalculatePlayerRank(ctx context.Context, playerID u
 
 func (r *resultRepository) calculateRankPointsChange(isWin bool, currentPoints int) int {
 	basePoints := 25
-	
+
 	if isWin {
 		multiplier := 1.0
 		if currentPoints < 1000 {

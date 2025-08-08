@@ -2,12 +2,13 @@ package engine
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 	"ua/shared/logger"
 	"ua/shared/models"
-	"go.uber.org/zap"
 )
 
 type EffectManager interface {
@@ -28,7 +29,7 @@ func NewEffectManager() EffectManager {
 	em := &effectManager{
 		effectProcessors: make(map[string]EffectProcessor),
 	}
-	
+
 	em.registerEffectProcessors()
 	return em
 }
@@ -70,7 +71,7 @@ func (em *effectManager) ApplyEffect(ctx context.Context, gameState *models.Game
 func (em *effectManager) ProcessTriggers(ctx context.Context, gameState *models.GameState, triggerType string, triggerData map[string]interface{}) error {
 	for _, player := range gameState.Players {
 		allCards := append(player.Characters, player.Fields...)
-		
+
 		for _, cardInPlay := range allCards {
 			if cardInPlay.Card.TriggerEffect != nil {
 				var effects []models.CardEffect
@@ -90,7 +91,7 @@ func (em *effectManager) ProcessTriggers(ctx context.Context, gameState *models.
 			}
 		}
 	}
-	
+
 	return nil
 }
 
@@ -186,7 +187,7 @@ func (em *effectManager) checkEnergyCondition(gameState *models.GameState, condi
 		if !ok {
 			continue
 		}
-		
+
 		if float64(player.Energy[color]) < required {
 			return false
 		}
@@ -416,12 +417,12 @@ func NewTurnManager() TurnManager {
 
 func (tm *turnManager) ProcessTurnStart(ctx context.Context, gameState *models.GameState) error {
 	player := gameState.Players[gameState.ActivePlayer]
-	
+
 	if player.MaxAP < 10 {
 		player.MaxAP++
 	}
 	player.AP = player.MaxAP
-	
+
 	if len(player.Deck) > 0 {
 		card := player.Deck[0]
 		player.Deck = player.Deck[1:]
@@ -466,7 +467,7 @@ func (tm *turnManager) ProcessPhaseEnd(ctx context.Context, gameState *models.Ga
 
 func (tm *turnManager) processStartPhase(ctx context.Context, gameState *models.GameState) error {
 	player := gameState.Players[gameState.ActivePlayer]
-	
+
 	var energyProduce map[string]int
 	for _, field := range player.Fields {
 		if field.Card.EnergyProduce != nil {
@@ -490,7 +491,7 @@ func (tm *turnManager) processAttackPhase(ctx context.Context, gameState *models
 
 func (tm *turnManager) processEndPhase(ctx context.Context, gameState *models.GameState) error {
 	player := gameState.Players[gameState.ActivePlayer]
-	
+
 	for i := range player.Characters {
 		for j := len(player.Characters[i].Modifiers) - 1; j >= 0; j-- {
 			modifier := &player.Characters[i].Modifiers[j]

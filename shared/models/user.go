@@ -7,20 +7,20 @@ import (
 )
 
 type User struct {
-	ID           uuid.UUID `json:"id" db:"id"`
-	Username     string    `json:"username" db:"username"`
-	Email        string    `json:"email" db:"email"`
-	PasswordHash string    `json:"-" db:"password_hash"`
-	DisplayName  string    `json:"display_name" db:"display_name"`
-	AvatarURL    string    `json:"avatar_url" db:"avatar_url"`
-	Level        int       `json:"level" db:"level"`
-	Experience   int       `json:"experience" db:"experience"`
-	Rank         int       `json:"rank" db:"rank"`
-	RankPoints   int       `json:"rank_points" db:"rank_points"`
-	IsActive     bool      `json:"is_active" db:"is_active"`
+	ID           uuid.UUID  `json:"id" db:"id"`
+	Username     string     `json:"username" db:"username"`
+	Email        string     `json:"email" db:"email"`
+	PasswordHash string     `json:"-" db:"password_hash"`
+	DisplayName  string     `json:"display_name" db:"display_name"`
+	AvatarURL    string     `json:"avatar_url" db:"avatar_url"`
+	Level        int        `json:"level" db:"level"`
+	Experience   int        `json:"experience" db:"experience"`
+	Rank         int        `json:"rank" db:"rank"`
+	RankPoints   int        `json:"rank_points" db:"rank_points"`
+	IsActive     bool       `json:"is_active" db:"is_active"`
 	LastLoginAt  *time.Time `json:"last_login_at" db:"last_login_at"`
-	CreatedAt    time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
+	CreatedAt    time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at" db:"updated_at"`
 }
 
 type UserCollection struct {
@@ -31,13 +31,13 @@ type UserCollection struct {
 }
 
 type Deck struct {
-	ID        uuid.UUID       `json:"id" db:"id"`
-	UserID    uuid.UUID       `json:"user_id" db:"user_id"`
-	Name      string          `json:"name" db:"name"`
-	IsActive  bool            `json:"is_active" db:"is_active"`
-	Cards     []DeckCard      `json:"cards" db:"cards"`
-	CreatedAt time.Time       `json:"created_at" db:"created_at"`
-	UpdatedAt time.Time       `json:"updated_at" db:"updated_at"`
+	ID        uuid.UUID  `json:"id" db:"id"`
+	UserID    uuid.UUID  `json:"user_id" db:"user_id"`
+	Name      string     `json:"name" db:"name"`
+	IsActive  bool       `json:"is_active" db:"is_active"`
+	Cards     []DeckCard `json:"cards" db:"cards"`
+	CreatedAt time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt time.Time  `json:"updated_at" db:"updated_at"`
 }
 
 type DeckCard struct {
@@ -46,10 +46,10 @@ type DeckCard struct {
 }
 
 type UserProfile struct {
-	User            *User             `json:"user"`
-	Stats           *UserStats        `json:"stats"`
-	RecentMatches   []GameResult      `json:"recent_matches"`
-	Achievements    []Achievement     `json:"achievements"`
+	User          *User         `json:"user"`
+	Stats         *UserStats    `json:"stats"`
+	RecentMatches []GameResult  `json:"recent_matches"`
+	Achievements  []Achievement `json:"achievements"`
 }
 
 type UserStats struct {

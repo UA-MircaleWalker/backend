@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 	"ua/shared/logger"
 	"ua/shared/models"
-	"go.uber.org/zap"
 )
 
 type GameEngine interface {
@@ -24,32 +24,32 @@ type GameEngine interface {
 }
 
 type InitGameRequest struct {
-	GameID    uuid.UUID      `json:"game_id"`
-	Player1   *PlayerSetup   `json:"player1"`
-	Player2   *PlayerSetup   `json:"player2"`
+	GameID  uuid.UUID    `json:"game_id"`
+	Player1 *PlayerSetup `json:"player1"`
+	Player2 *PlayerSetup `json:"player2"`
 }
 
 type PlayerSetup struct {
-	UserID uuid.UUID        `json:"user_id"`
-	Deck   []models.Card    `json:"deck"`
+	UserID uuid.UUID     `json:"user_id"`
+	Deck   []models.Card `json:"deck"`
 }
 
 type ActionResult struct {
-	Success       bool                  `json:"success"`
-	Error         string                `json:"error,omitempty"`
-	GameState     *models.GameState     `json:"game_state"`
-	Effects       []EffectResult        `json:"effects"`
-	EventsTriggered []GameEvent         `json:"events_triggered"`
-	NextPhase     *models.Phase         `json:"next_phase,omitempty"`
+	Success         bool              `json:"success"`
+	Error           string            `json:"error,omitempty"`
+	GameState       *models.GameState `json:"game_state"`
+	Effects         []EffectResult    `json:"effects"`
+	EventsTriggered []GameEvent       `json:"events_triggered"`
+	NextPhase       *models.Phase     `json:"next_phase,omitempty"`
 }
 
 type EffectResult struct {
-	Type        string                 `json:"type"`
-	Source      uuid.UUID              `json:"source"`
-	Target      *uuid.UUID             `json:"target,omitempty"`
-	Value       interface{}            `json:"value"`
-	Description string                 `json:"description"`
-	Applied     bool                   `json:"applied"`
+	Type        string      `json:"type"`
+	Source      uuid.UUID   `json:"source"`
+	Target      *uuid.UUID  `json:"target,omitempty"`
+	Value       interface{} `json:"value"`
+	Description string      `json:"description"`
+	Applied     bool        `json:"applied"`
 }
 
 type GameEvent struct {
@@ -89,31 +89,31 @@ func (e *gameEngine) InitializeGame(ctx context.Context, req *InitGameRequest) (
 	}
 
 	player1 := &models.Player{
-		ID:            req.Player1.UserID,
-		AP:            3,
-		MaxAP:         3,
-		Energy:        make(map[string]int),
-		Hand:          []models.Card{},
-		Deck:          req.Player1.Deck,
-		Characters:    []models.CardInPlay{},
-		Fields:        []models.CardInPlay{},
-		Events:        []models.CardInPlay{},
-		Graveyard:     []models.Card{},
-		RemovedCards:  []models.Card{},
+		ID:           req.Player1.UserID,
+		AP:           3,
+		MaxAP:        3,
+		Energy:       make(map[string]int),
+		Hand:         []models.Card{},
+		Deck:         req.Player1.Deck,
+		Characters:   []models.CardInPlay{},
+		Fields:       []models.CardInPlay{},
+		Events:       []models.CardInPlay{},
+		Graveyard:    []models.Card{},
+		RemovedCards: []models.Card{},
 	}
 
 	player2 := &models.Player{
-		ID:            req.Player2.UserID,
-		AP:            3,
-		MaxAP:         3,
-		Energy:        make(map[string]int),
-		Hand:          []models.Card{},
-		Deck:          req.Player2.Deck,
-		Characters:    []models.CardInPlay{},
-		Fields:        []models.CardInPlay{},
-		Events:        []models.CardInPlay{},
-		Graveyard:     []models.Card{},
-		RemovedCards:  []models.Card{},
+		ID:           req.Player2.UserID,
+		AP:           3,
+		MaxAP:        3,
+		Energy:       make(map[string]int),
+		Hand:         []models.Card{},
+		Deck:         req.Player2.Deck,
+		Characters:   []models.CardInPlay{},
+		Fields:       []models.CardInPlay{},
+		Events:       []models.CardInPlay{},
+		Graveyard:    []models.Card{},
+		RemovedCards: []models.Card{},
 	}
 
 	e.shuffleDeck(player1.Deck)
@@ -285,7 +285,7 @@ func (e *gameEngine) CheckWinCondition(ctx context.Context, gameState *models.Ga
 				characterCount++
 			}
 		}
-		
+
 		if characterCount == 0 && gameState.Turn > 1 {
 			return &WinCondition{
 				HasWinner: true,
@@ -476,7 +476,7 @@ func (e *gameEngine) processAttack(gameState *models.GameState, action *models.G
 
 	player := gameState.Players[action.PlayerID]
 	var attacker *models.CardInPlay
-	
+
 	for i := range player.Characters {
 		if player.Characters[i].Card.ID == *actionData.CardID {
 			attacker = &player.Characters[i]
@@ -526,7 +526,7 @@ func (e *gameEngine) processAttack(gameState *models.GameState, action *models.G
 	if damage > 0 {
 		defender.Card.BP = new(int)
 		*defender.Card.BP -= damage
-		
+
 		if *defender.Card.BP <= 0 {
 			for i, char := range opponent.Characters {
 				if char.Card.ID == defender.Card.ID {
@@ -535,7 +535,7 @@ func (e *gameEngine) processAttack(gameState *models.GameState, action *models.G
 					break
 				}
 			}
-			
+
 			result.EventsTriggered = append(result.EventsTriggered, GameEvent{
 				Type:      "CHARACTER_DESTROYED",
 				Target:    actionData.TargetID,
@@ -580,7 +580,7 @@ func (e *gameEngine) processEndTurn(gameState *models.GameState, action *models.
 
 func (e *gameEngine) processSurrender(gameState *models.GameState, action *models.GameAction, result *ActionResult) {
 	opponentID := e.getOpponentID(gameState, action.PlayerID)
-	
+
 	result.EventsTriggered = append(result.EventsTriggered, GameEvent{
 		Type:      "GAME_ENDED",
 		Data:      map[string]interface{}{"winner": opponentID, "reason": "opponent surrendered"},
@@ -591,7 +591,7 @@ func (e *gameEngine) processSurrender(gameState *models.GameState, action *model
 func (e *gameEngine) advanceTurn(gameState *models.GameState) *models.GameState {
 	gameState.Turn++
 	gameState.Phase = models.StartPhase
-	
+
 	for playerID := range gameState.Players {
 		if playerID != gameState.ActivePlayer {
 			gameState.ActivePlayer = playerID
@@ -600,12 +600,12 @@ func (e *gameEngine) advanceTurn(gameState *models.GameState) *models.GameState 
 	}
 
 	player := gameState.Players[gameState.ActivePlayer]
-	
+
 	if player.MaxAP < 10 {
 		player.MaxAP++
 	}
 	player.AP = player.MaxAP
-	
+
 	e.drawCard(player)
 
 	for i := range player.Characters {

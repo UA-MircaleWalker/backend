@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 	"ua/services/game-result-service/internal/repository"
 	"ua/shared/logger"
 	"ua/shared/models"
-	"go.uber.org/zap"
 )
 
 type ResultService interface {
@@ -37,25 +37,25 @@ type RecordResultRequest struct {
 }
 
 type RecordResultResponse struct {
-	ResultID              uuid.UUID                     `json:"result_id"`
-	Player1StatsUpdate    *PlayerStatsUpdate            `json:"player1_stats_update"`
-	Player2StatsUpdate    *PlayerStatsUpdate            `json:"player2_stats_update"`
-	AchievementsUnlocked  []*Achievement                `json:"achievements_unlocked"`
-	RankChanges          map[uuid.UUID]*RankChange      `json:"rank_changes"`
+	ResultID             uuid.UUID                 `json:"result_id"`
+	Player1StatsUpdate   *PlayerStatsUpdate        `json:"player1_stats_update"`
+	Player2StatsUpdate   *PlayerStatsUpdate        `json:"player2_stats_update"`
+	AchievementsUnlocked []*Achievement            `json:"achievements_unlocked"`
+	RankChanges          map[uuid.UUID]*RankChange `json:"rank_changes"`
 }
 
 type PlayerStatsUpdate struct {
-	PreviousStats   *repository.PlayerStats `json:"previous_stats"`
-	NewStats        *repository.PlayerStats `json:"new_stats"`
+	PreviousStats    *repository.PlayerStats `json:"previous_stats"`
+	NewStats         *repository.PlayerStats `json:"new_stats"`
 	RankPointsChange int                     `json:"rank_points_change"`
 	StreakChange     int                     `json:"streak_change"`
 }
 
 type PlayerStatsResponse struct {
-	Stats        *repository.PlayerStats   `json:"stats"`
-	User         *models.User              `json:"user"`
-	Achievements []*Achievement            `json:"achievements"`
-	RankHistory  []*RankHistoryEntry       `json:"rank_history"`
+	Stats        *repository.PlayerStats `json:"stats"`
+	User         *models.User            `json:"user"`
+	Achievements []*Achievement          `json:"achievements"`
+	RankHistory  []*RankHistoryEntry     `json:"rank_history"`
 }
 
 type LeaderboardRequest struct {
@@ -66,11 +66,11 @@ type LeaderboardRequest struct {
 }
 
 type LeaderboardResponse struct {
-	Entries    []*repository.LeaderboardEntry `json:"entries"`
-	Total      int64                          `json:"total"`
-	Page       int                            `json:"page"`
-	Limit      int                            `json:"limit"`
-	UpdatedAt  time.Time                      `json:"updated_at"`
+	Entries   []*repository.LeaderboardEntry `json:"entries"`
+	Total     int64                          `json:"total"`
+	Page      int                            `json:"page"`
+	Limit     int                            `json:"limit"`
+	UpdatedAt time.Time                      `json:"updated_at"`
 }
 
 type MatchHistoryResponse struct {
@@ -94,16 +94,16 @@ type AnalyticsResponse struct {
 }
 
 type Achievement struct {
-	ID          uuid.UUID `json:"id"`
-	Name        string    `json:"name"`
-	Description string    `json:"description"`
-	IconURL     string    `json:"icon_url"`
-	Type        string    `json:"type"`
-	Condition   string    `json:"condition"`
-	Reward      string    `json:"reward"`
+	ID          uuid.UUID  `json:"id"`
+	Name        string     `json:"name"`
+	Description string     `json:"description"`
+	IconURL     string     `json:"icon_url"`
+	Type        string     `json:"type"`
+	Condition   string     `json:"condition"`
+	Reward      string     `json:"reward"`
 	UnlockedAt  *time.Time `json:"unlocked_at,omitempty"`
-	Progress    int       `json:"progress"`
-	Target      int       `json:"target"`
+	Progress    int        `json:"progress"`
+	Target      int        `json:"target"`
 }
 
 type RankChange struct {
@@ -127,10 +127,10 @@ type TrendDataPoint struct {
 }
 
 type TopPerformer struct {
-	User     *models.User            `json:"user"`
-	Stats    *repository.PlayerStats `json:"stats"`
-	Metric   string                  `json:"metric"`
-	Value    float64                 `json:"value"`
+	User   *models.User            `json:"user"`
+	Stats  *repository.PlayerStats `json:"stats"`
+	Metric string                  `json:"metric"`
+	Value  float64                 `json:"value"`
 }
 
 type resultService struct {

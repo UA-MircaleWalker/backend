@@ -57,14 +57,14 @@ func ValidatePageAndLimit(page, limit int) (int, int, error) {
 	if page <= 0 {
 		page = 1
 	}
-	
+
 	if limit <= 0 {
 		limit = 10
 	}
-	
+
 	if limit > 100 {
 		return 0, 0, fmt.Errorf("limit cannot exceed 100")
 	}
-	
+
 	return page, limit, nil
 }

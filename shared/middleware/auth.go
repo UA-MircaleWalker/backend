@@ -35,7 +35,7 @@ func AuthMiddleware(jwtSecret string) gin.HandlerFunc {
 
 		c.Set("user_id", claims.UserID)
 		c.Set("username", claims.Username)
-		
+
 		ctx := context.WithValue(c.Request.Context(), "user_id", claims.UserID)
 		ctx = context.WithValue(ctx, "username", claims.Username)
 		c.Request = c.Request.WithContext(ctx)
@@ -63,7 +63,7 @@ func OptionalAuthMiddleware(jwtSecret string) gin.HandlerFunc {
 		if err == nil {
 			c.Set("user_id", claims.UserID)
 			c.Set("username", claims.Username)
-			
+
 			ctx := context.WithValue(c.Request.Context(), "user_id", claims.UserID)
 			ctx = context.WithValue(ctx, "username", claims.Username)
 			c.Request = c.Request.WithContext(ctx)

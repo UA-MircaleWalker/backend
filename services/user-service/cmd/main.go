@@ -13,18 +13,18 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/swaggo/files"
 	"github.com/swaggo/gin-swagger"
-	"ua/services/game-result-service/internal/handler"
-	"ua/services/game-result-service/internal/repository"
-	"ua/services/game-result-service/internal/service"
+	"ua/services/user-service/internal/handler"
+	"ua/services/user-service/internal/repository"
+	"ua/services/user-service/internal/service"
 	"ua/shared/config"
 	"ua/shared/database"
 	"ua/shared/logger"
 	"ua/shared/middleware"
 )
 
-// @title UA Game Result Service API
+// @title UA User Service API
 // @version 1.0
-// @description Game result and statistics microservice for UA Card Battle Game
+// @description User management microservice for UA Card Battle Game
 // @termsOfService http://swagger.io/terms/
 
 // @contact.name API Support
@@ -34,7 +34,7 @@ import (
 // @license.name MIT
 // @license.url https://opensource.org/licenses/MIT
 
-// @host localhost:8005
+// @host localhost:8002
 // @BasePath /api/v1
 // @schemes http https
 
@@ -45,7 +45,7 @@ import (
 
 func main() {
 	cfg := config.Load()
-	cfg.Port = "8005"
+	cfg.Port = "8002"
 
 	if err := logger.InitLogger(cfg.Environment); err != nil {
 		log.Fatal("Failed to initialize logger:", err)
@@ -57,11 +57,11 @@ func main() {
 	}
 	defer db.Close()
 
-	resultRepo := repository.NewResultRepository(db)
-	resultService := service.NewResultService(resultRepo)
-	resultHandler := handler.NewResultHandler(resultService)
+	userRepo := repository.NewUserRepository(db)
+	userService := service.NewUserService(userRepo, cfg.JWTSecret)
+	userHandler := handler.NewUserHandler(userService)
 
-	router := setupRouter(cfg, resultHandler)
+	router := setupRouter(cfg, userHandler)
 
 	srv := &http.Server{
 		Addr:    ":" + cfg.Port,
@@ -69,7 +69,7 @@ func main() {
 	}
 
 	go func() {
-		logger.Info(fmt.Sprintf("Game Result Service starting on port %s", cfg.Port))
+		logger.Info(fmt.Sprintf("User Service starting on port %s", cfg.Port))
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatal("Failed to start server:", err)
 		}
@@ -79,19 +79,19 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	logger.Info("Game Result Service shutting down...")
+	logger.Info("User Service shutting down...")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	if err := srv.Shutdown(ctx); err != nil {
-		log.Fatal("Game Result Service forced to shutdown:", err)
+		log.Fatal("User Service forced to shutdown:", err)
 	}
 
-	logger.Info("Game Result Service exited")
+	logger.Info("User Service exited")
 }
 
-func setupRouter(cfg *config.Config, resultHandler *handler.ResultHandler) *gin.Engine {
+func setupRouter(cfg *config.Config, userHandler *handler.UserHandler) *gin.Engine {
 	if cfg.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -104,7 +104,7 @@ func setupRouter(cfg *config.Config, resultHandler *handler.ResultHandler) *gin.
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"status":  "healthy",
-			"service": "game-result-service",
+			"service": "user-service",
 			"version": "1.0.0",
 		})
 	})
@@ -113,18 +113,23 @@ func setupRouter(cfg *config.Config, resultHandler *handler.ResultHandler) *gin.
 
 	api := r.Group("/api/v1")
 	{
-		api.GET("/leaderboard", resultHandler.GetLeaderboard)
-		api.GET("/results/:gameId", resultHandler.GetGameResult)
-		api.GET("/results/:userId/stats", resultHandler.GetPlayerStats)
-		api.GET("/results/:userId/achievements", resultHandler.GetPlayerAchievements)
-		api.GET("/results/compare", resultHandler.ComparePlayer)
+		auth := api.Group("/auth")
+		{
+			auth.POST("/register", userHandler.Register)
+			auth.POST("/login", userHandler.Login)
+			auth.POST("/refresh", userHandler.RefreshToken)
+		}
 
-		api.Use(middleware.AuthMiddleware(cfg.JWTSecret))
-		api.POST("/results", resultHandler.RecordResult)
-		api.GET("/results/:userId/history", resultHandler.GetMatchHistory)
-		api.POST("/analytics", resultHandler.GetAnalytics)
-		api.GET("/analytics/overview", resultHandler.GetAnalyticsOverview)
-		api.POST("/results/rankings/update", resultHandler.UpdateRankings)
+		users := api.Group("/users")
+		{
+			users.Use(middleware.AuthMiddleware(cfg.JWTSecret))
+			users.GET("/profile", userHandler.GetProfile)
+			users.PUT("/profile", userHandler.UpdateProfile)
+			users.POST("/avatar", userHandler.UploadAvatar)
+			users.GET("/stats", userHandler.GetUserStats)
+			users.GET("/achievements", userHandler.GetAchievements)
+			users.POST("/change-password", userHandler.ChangePassword)
+		}
 	}
 
 	return r

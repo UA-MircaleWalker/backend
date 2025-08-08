@@ -6,8 +6,8 @@ import (
 	"time"
 
 	_ "github.com/lib/pq"
-	"ua/shared/logger"
 	"go.uber.org/zap"
+	"ua/shared/logger"
 )
 
 type DB struct {

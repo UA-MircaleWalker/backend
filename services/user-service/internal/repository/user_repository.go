@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/lib/pq"
 	"ua/shared/database"
 	"ua/shared/models"
 )
@@ -284,7 +283,7 @@ func (r *userRepository) GetLeaderboard(ctx context.Context, limit int) ([]*Lead
 	for rows.Next() {
 		user := &models.User{}
 		entry := &LeaderboardEntry{User: user}
-		
+
 		err := rows.Scan(
 			&user.ID, &user.Username, &user.DisplayName, &user.AvatarURL,
 			&user.Level, &user.Rank, &user.RankPoints, &entry.WinRate,
@@ -292,7 +291,7 @@ func (r *userRepository) GetLeaderboard(ctx context.Context, limit int) ([]*Lead
 		if err != nil {
 			return nil, err
 		}
-		
+
 		entry.RankPoints = user.RankPoints
 		entries = append(entries, entry)
 	}
@@ -357,7 +356,7 @@ func (r *deckRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.Dec
 
 	deck := &models.Deck{}
 	var cardsJSON []byte
-	
+
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&deck.ID, &deck.UserID, &deck.Name, &deck.IsActive,
 		&cardsJSON, &deck.CreatedAt, &deck.UpdatedAt)
@@ -392,7 +391,7 @@ func (r *deckRepository) GetByUserID(ctx context.Context, userID uuid.UUID) ([]*
 	for rows.Next() {
 		deck := &models.Deck{}
 		var cardsJSON []byte
-		
+
 		err := rows.Scan(
 			&deck.ID, &deck.UserID, &deck.Name, &deck.IsActive,
 			&cardsJSON, &deck.CreatedAt, &deck.UpdatedAt)
@@ -418,7 +417,7 @@ func (r *deckRepository) GetActiveDeck(ctx context.Context, userID uuid.UUID) (*
 
 	deck := &models.Deck{}
 	var cardsJSON []byte
-	
+
 	err := r.db.QueryRowContext(ctx, query, userID).Scan(
 		&deck.ID, &deck.UserID, &deck.Name, &deck.IsActive,
 		&cardsJSON, &deck.CreatedAt, &deck.UpdatedAt)
@@ -545,7 +544,7 @@ func (r *collectionRepository) RemoveCard(ctx context.Context, userID, cardID uu
 
 func (r *collectionRepository) GetCardCount(ctx context.Context, userID, cardID uuid.UUID) (int, error) {
 	query := "SELECT COALESCE(quantity, 0) FROM user_collections WHERE user_id = $1 AND card_id = $2"
-	
+
 	var count int
 	err := r.db.QueryRowContext(ctx, query, userID, cardID).Scan(&count)
 	if err == sql.ErrNoRows {

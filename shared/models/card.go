@@ -39,11 +39,11 @@ type CardEffect struct {
 type EnergyCost map[string]int
 
 type CardValidationRule struct {
-	MaxCopies     int      `json:"max_copies"`
-	RestrictedIn  []string `json:"restricted_in,omitempty"`
-	RequiredWork  string   `json:"required_work,omitempty"`
-	MinDeckSize   int      `json:"min_deck_size,omitempty"`
-	MaxDeckSize   int      `json:"max_deck_size,omitempty"`
+	MaxCopies    int      `json:"max_copies"`
+	RestrictedIn []string `json:"restricted_in,omitempty"`
+	RequiredWork string   `json:"required_work,omitempty"`
+	MinDeckSize  int      `json:"min_deck_size,omitempty"`
+	MaxDeckSize  int      `json:"max_deck_size,omitempty"`
 }
 
 const (

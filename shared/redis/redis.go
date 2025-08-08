@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/redis/go-redis/v9"
-	"ua/shared/logger"
 	"go.uber.org/zap"
+	"ua/shared/logger"
 )
 
 type Client struct {

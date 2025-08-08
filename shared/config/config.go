@@ -6,11 +6,11 @@ import (
 )
 
 type Config struct {
-	Port         string
-	PostgresURL  string
-	RedisURL     string
-	JWTSecret    string
-	Environment  string
+	Port        string
+	PostgresURL string
+	RedisURL    string
+	JWTSecret   string
+	Environment string
 }
 
 func Load() *Config {
