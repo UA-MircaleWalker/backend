@@ -114,14 +114,18 @@ func setupRouter(cfg *config.Config, resultHandler *handler.ResultHandler) *gin.
 	api := r.Group("/api/v1")
 	{
 		api.GET("/leaderboard", resultHandler.GetLeaderboard)
-		api.GET("/results/:gameId", resultHandler.GetGameResult)
-		api.GET("/results/:userId/stats", resultHandler.GetPlayerStats)
-		api.GET("/results/:userId/achievements", resultHandler.GetPlayerAchievements)
 		api.GET("/results/compare", resultHandler.ComparePlayer)
+		
+		// Game-specific results
+		api.GET("/results/game/:gameId", resultHandler.GetGameResult)
+		
+		// Player-specific results  
+		api.GET("/results/player/:userId/stats", resultHandler.GetPlayerStats)
+		api.GET("/results/player/:userId/achievements", resultHandler.GetPlayerAchievements)
+		api.GET("/results/player/:userId/history", resultHandler.GetMatchHistory)
 
 		api.Use(middleware.AuthMiddleware(cfg.JWTSecret))
 		api.POST("/results", resultHandler.RecordResult)
-		api.GET("/results/:userId/history", resultHandler.GetMatchHistory)
 		api.POST("/analytics", resultHandler.GetAnalytics)
 		api.GET("/analytics/overview", resultHandler.GetAnalyticsOverview)
 		api.POST("/results/rankings/update", resultHandler.UpdateRankings)
