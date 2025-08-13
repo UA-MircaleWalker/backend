@@ -130,6 +130,7 @@ func setupRouter(cfg *config.Config, gameHandler *handler.GameHandler) *gin.Engi
 			games.GET("/:gameId", gameHandler.GetGame)
 			games.POST("/:gameId/join", gameHandler.JoinGame)
 			games.POST("/:gameId/start", gameHandler.StartGame)
+			games.POST("/:gameId/mulligan", gameHandler.PerformMulligan)
 			games.POST("/:gameId/actions", gameHandler.PlayAction)
 			games.POST("/:gameId/surrender", gameHandler.SurrenderGame)
 		}

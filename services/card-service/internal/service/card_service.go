@@ -33,6 +33,7 @@ type CreateCardRequest struct {
 	CardNumber      string              `json:"card_number" validate:"required"`
 	Name            string              `json:"name" validate:"required"`
 	CardType        string              `json:"card_type" validate:"required"`
+	Color           string              `json:"color" validate:"required"`
 	WorkCode        string              `json:"work_code" validate:"required"`
 	BP              *int                `json:"bp"`
 	APCost          int                 `json:"ap_cost"`
@@ -41,7 +42,7 @@ type CreateCardRequest struct {
 	Rarity          string              `json:"rarity" validate:"required"`
 	Characteristics []string            `json:"characteristics"`
 	EffectText      string              `json:"effect_text"`
-	TriggerEffect   []models.CardEffect `json:"trigger_effect"`
+	TriggerEffect   string              `json:"trigger_effect"`
 	Keywords        []string            `json:"keywords"`
 	ImageURL        string              `json:"image_url"`
 }
@@ -49,6 +50,7 @@ type CreateCardRequest struct {
 type UpdateCardRequest struct {
 	Name            *string              `json:"name"`
 	CardType        *string              `json:"card_type"`
+	Color           *string              `json:"color"`
 	WorkCode        *string              `json:"work_code"`
 	BP              *int                 `json:"bp"`
 	APCost          *int                 `json:"ap_cost"`
@@ -57,7 +59,7 @@ type UpdateCardRequest struct {
 	Rarity          *string              `json:"rarity"`
 	Characteristics *[]string            `json:"characteristics"`
 	EffectText      *string              `json:"effect_text"`
-	TriggerEffect   *[]models.CardEffect `json:"trigger_effect"`
+	TriggerEffect   *string              `json:"trigger_effect"`
 	Keywords        *[]string            `json:"keywords"`
 	ImageURL        *string              `json:"image_url"`
 }
@@ -172,16 +174,12 @@ func (s *cardService) CreateCard(ctx context.Context, req *CreateCardRequest) (*
 		return nil, fmt.Errorf("failed to marshal energy produce: %w", err)
 	}
 
-	triggerEffectJSON, err := json.Marshal(req.TriggerEffect)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal trigger effect: %w", err)
-	}
-
 	card := &models.Card{
 		ID:              uuid.New(),
 		CardNumber:      req.CardNumber,
 		Name:            req.Name,
 		CardType:        req.CardType,
+		Color:           req.Color,
 		WorkCode:        req.WorkCode,
 		BP:              req.BP,
 		APCost:          req.APCost,
@@ -190,7 +188,7 @@ func (s *cardService) CreateCard(ctx context.Context, req *CreateCardRequest) (*
 		Rarity:          req.Rarity,
 		Characteristics: req.Characteristics,
 		EffectText:      req.EffectText,
-		TriggerEffect:   triggerEffectJSON,
+		TriggerEffect:   req.TriggerEffect,
 		Keywords:        req.Keywords,
 		ImageURL:        req.ImageURL,
 		CreatedAt:       time.Now(),
@@ -254,6 +252,9 @@ func (s *cardService) UpdateCard(ctx context.Context, id uuid.UUID, req *UpdateC
 		}
 		card.CardType = *req.CardType
 	}
+	if req.Color != nil {
+		card.Color = *req.Color
+	}
 	if req.WorkCode != nil {
 		card.WorkCode = *req.WorkCode
 	}
@@ -290,11 +291,7 @@ func (s *cardService) UpdateCard(ctx context.Context, id uuid.UUID, req *UpdateC
 		card.EffectText = *req.EffectText
 	}
 	if req.TriggerEffect != nil {
-		triggerEffectJSON, err := json.Marshal(*req.TriggerEffect)
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal trigger effect: %w", err)
-		}
-		card.TriggerEffect = triggerEffectJSON
+		card.TriggerEffect = *req.TriggerEffect
 	}
 	if req.Keywords != nil {
 		card.Keywords = *req.Keywords

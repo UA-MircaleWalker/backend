@@ -39,27 +39,23 @@ func NewGameRepository(db *database.DB, redis *redis.Client) GameRepository {
 }
 
 func (r *gameRepository) CreateGame(ctx context.Context, game *models.Game) error {
-	gameStateJSON, err := json.Marshal(game.GameState)
-	if err != nil {
-		return fmt.Errorf("failed to marshal game state: %w", err)
-	}
-
 	query := `
 		INSERT INTO games (id, player1_id, player2_id, status, current_turn, phase, 
 						  active_player, game_state, started_at, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`
 
-	_, err = r.db.ExecContext(ctx, query,
+	_, err := r.db.ExecContext(ctx, query,
 		game.ID, game.Player1ID, game.Player2ID, game.Status,
-		game.CurrentTurn, game.Phase, game.ActivePlayer, gameStateJSON,
+		game.CurrentTurn, game.Phase.String(), game.ActivePlayer, game.GameState,
 		game.StartedAt, game.CreatedAt, game.UpdatedAt)
 
 	if err != nil {
 		return fmt.Errorf("failed to create game: %w", err)
 	}
 
+	// Cache the game state JSON directly (it's already marshaled)
 	gameStateKey := fmt.Sprintf("game:%s:state", game.ID.String())
-	if err := r.redis.SetJSON(ctx, gameStateKey, game.GameState, 24*time.Hour); err != nil {
+	if err := r.redis.Set(ctx, gameStateKey, string(game.GameState), 24*time.Hour).Err(); err != nil {
 		return fmt.Errorf("failed to cache game state: %w", err)
 	}
 
@@ -75,16 +71,20 @@ func (r *gameRepository) GetGame(ctx context.Context, gameID uuid.UUID) (*models
 
 	game := &models.Game{}
 	var gameStateJSON []byte
+	var phaseStr string
 
 	err := r.db.QueryRowContext(ctx, query, gameID).Scan(
 		&game.ID, &game.Player1ID, &game.Player2ID, &game.Status,
-		&game.CurrentTurn, &game.Phase, &game.ActivePlayer, &gameStateJSON,
+		&game.CurrentTurn, &phaseStr, &game.ActivePlayer, &gameStateJSON,
 		&game.Winner, &game.StartedAt, &game.CompletedAt,
 		&game.CreatedAt, &game.UpdatedAt)
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to get game: %w", err)
 	}
+
+	// Convert phase string back to Phase enum
+	game.Phase = models.ParsePhase(phaseStr)
 
 	if err := json.Unmarshal(gameStateJSON, &game.GameState); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal game state: %w", err)
@@ -94,20 +94,15 @@ func (r *gameRepository) GetGame(ctx context.Context, gameID uuid.UUID) (*models
 }
 
 func (r *gameRepository) UpdateGame(ctx context.Context, game *models.Game) error {
-	gameStateJSON, err := json.Marshal(game.GameState)
-	if err != nil {
-		return fmt.Errorf("failed to marshal game state: %w", err)
-	}
-
 	query := `
 		UPDATE games SET
 			status = $2, current_turn = $3, phase = $4, active_player = $5,
 			game_state = $6, winner = $7, completed_at = $8, updated_at = $9
 		WHERE id = $1`
 
-	_, err = r.db.ExecContext(ctx, query,
-		game.ID, game.Status, game.CurrentTurn, game.Phase,
-		game.ActivePlayer, gameStateJSON, game.Winner,
+	_, err := r.db.ExecContext(ctx, query,
+		game.ID, game.Status, game.CurrentTurn, game.Phase.String(),
+		game.ActivePlayer, game.GameState, game.Winner,
 		game.CompletedAt, game.UpdatedAt)
 
 	if err != nil {
@@ -115,7 +110,7 @@ func (r *gameRepository) UpdateGame(ctx context.Context, game *models.Game) erro
 	}
 
 	gameStateKey := fmt.Sprintf("game:%s:state", game.ID.String())
-	if err := r.redis.SetJSON(ctx, gameStateKey, game.GameState, 24*time.Hour); err != nil {
+	if err := r.redis.Set(ctx, gameStateKey, string(game.GameState), 24*time.Hour).Err(); err != nil {
 		return fmt.Errorf("failed to update cached game state: %w", err)
 	}
 
@@ -193,7 +188,7 @@ func (r *gameRepository) AddAction(ctx context.Context, gameID uuid.UUID, action
 
 	_, err = r.db.ExecContext(ctx, query,
 		action.ID, action.GameID, action.PlayerID, action.ActionType,
-		action.ActionData, action.Turn, action.Phase, action.Timestamp,
+		action.ActionData, action.Turn, action.Phase.String(), action.Timestamp,
 		action.IsValid, action.ErrorMsg)
 
 	if err != nil {
@@ -235,13 +230,15 @@ func (r *gameRepository) GetActions(ctx context.Context, gameID uuid.UUID, fromI
 	var actions []*models.GameAction
 	for rows.Next() {
 		action := &models.GameAction{}
+		var phaseStr string
 		err := rows.Scan(
 			&action.ID, &action.GameID, &action.PlayerID, &action.ActionType,
-			&action.ActionData, &action.Turn, &action.Phase, &action.Timestamp,
+			&action.ActionData, &action.Turn, &phaseStr, &action.Timestamp,
 			&action.IsValid, &action.ErrorMsg)
 		if err != nil {
 			continue
 		}
+		action.Phase = models.ParsePhase(phaseStr)
 		actions = append(actions, action)
 	}
 
@@ -278,15 +275,18 @@ func (r *gameRepository) GetActiveGames(ctx context.Context, playerID uuid.UUID)
 	for rows.Next() {
 		game := &models.Game{}
 		var gameStateJSON []byte
+		var phaseStr string
 
 		err := rows.Scan(
 			&game.ID, &game.Player1ID, &game.Player2ID, &game.Status,
-			&game.CurrentTurn, &game.Phase, &game.ActivePlayer, &gameStateJSON,
+			&game.CurrentTurn, &phaseStr, &game.ActivePlayer, &gameStateJSON,
 			&game.Winner, &game.StartedAt, &game.CompletedAt,
 			&game.CreatedAt, &game.UpdatedAt)
 		if err != nil {
 			continue
 		}
+
+		game.Phase = models.ParsePhase(phaseStr)
 
 		if err := json.Unmarshal(gameStateJSON, &game.GameState); err != nil {
 			continue
@@ -333,15 +333,18 @@ func (r *gameRepository) GetGamesByStatus(ctx context.Context, status models.Gam
 	for rows.Next() {
 		game := &models.Game{}
 		var gameStateJSON []byte
+		var phaseStr string
 
 		err := rows.Scan(
 			&game.ID, &game.Player1ID, &game.Player2ID, &game.Status,
-			&game.CurrentTurn, &game.Phase, &game.ActivePlayer, &gameStateJSON,
+			&game.CurrentTurn, &phaseStr, &game.ActivePlayer, &gameStateJSON,
 			&game.Winner, &game.StartedAt, &game.CompletedAt,
 			&game.CreatedAt, &game.UpdatedAt)
 		if err != nil {
 			continue
 		}
+
+		game.Phase = models.ParsePhase(phaseStr)
 
 		if len(gameStateJSON) > 0 {
 			json.Unmarshal(gameStateJSON, &game.GameState)

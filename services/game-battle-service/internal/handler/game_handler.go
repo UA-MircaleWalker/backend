@@ -127,6 +127,65 @@ func (h *GameHandler) StartGame(c *gin.Context) {
 	utils.SuccessResponse(c, response)
 }
 
+// @Summary Perform mulligan
+// @Description Player decides whether to mulligan their hand
+// @Tags games
+// @Accept json
+// @Produce json
+// @Param gameId path string true "Game ID"
+// @Param mulligan body MulliganRequest true "Mulligan decision"
+// @Success 200 {object} utils.Response{data=service.GameResponse}
+// @Failure 400 {object} utils.Response
+// @Failure 403 {object} utils.Response
+// @Failure 404 {object} utils.Response
+// @Failure 500 {object} utils.Response
+// @Security BearerAuth
+// @Router /api/v1/games/{gameId}/mulligan [post]
+func (h *GameHandler) PerformMulligan(c *gin.Context) {
+	gameIDStr := c.Param("gameId")
+	gameID, err := uuid.Parse(gameIDStr)
+	if err != nil {
+		utils.BadRequestResponse(c, "Invalid game ID")
+		return
+	}
+
+	playerIDInterface, exists := c.Get("user_id")
+	if !exists {
+		utils.UnauthorizedResponse(c, "User not authenticated")
+		return
+	}
+
+	playerID, ok := playerIDInterface.(uuid.UUID)
+	if !ok {
+		utils.InternalServerErrorResponse(c, "Invalid player ID format")
+		return
+	}
+
+	var reqBody MulliganRequest
+	if err := c.ShouldBindJSON(&reqBody); err != nil {
+		utils.BadRequestResponse(c, "Invalid request body: "+err.Error())
+		return
+	}
+
+	req := &service.MulliganRequest{
+		GameID:   gameID,
+		PlayerID: playerID,
+		Mulligan: reqBody.Mulligan,
+	}
+
+	response, err := h.gameService.PerformMulligan(c.Request.Context(), req)
+	if err != nil {
+		if err.Error() == "player not part of this game" {
+			utils.ErrorResponse(c, http.StatusForbidden, err.Error())
+			return
+		}
+		utils.InternalServerErrorResponse(c, "Failed to perform mulligan: "+err.Error())
+		return
+	}
+
+	utils.SuccessResponse(c, response)
+}
+
 // @Summary Play an action
 // @Description Play an action in a game
 // @Tags games
@@ -310,4 +369,8 @@ func (h *GameHandler) SurrenderGame(c *gin.Context) {
 type ActionRequest struct {
 	ActionType string `json:"action_type" binding:"required"`
 	ActionData []byte `json:"action_data,omitempty"`
+}
+
+type MulliganRequest struct {
+	Mulligan bool `json:"mulligan"`
 }

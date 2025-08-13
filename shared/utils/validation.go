@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
+	"ua/shared/models"
 )
 
 var (
@@ -67,4 +68,114 @@ func ValidatePageAndLimit(page, limit int) (int, int, error) {
 	}
 
 	return page, limit, nil
+}
+
+// DeckValidationError represents deck validation errors
+type DeckValidationError struct {
+	Field   string `json:"field"`
+	Message string `json:"message"`
+}
+
+func (e DeckValidationError) Error() string {
+	return fmt.Sprintf("%s: %s", e.Field, e.Message)
+}
+
+// ValidateDeck validates a deck according to Union Arena rules
+func ValidateDeck(cards []models.Card) []DeckValidationError {
+	var errors []DeckValidationError
+
+	// Check deck size (50 cards total)
+	if len(cards) != 50 {
+		errors = append(errors, DeckValidationError{
+			Field:   "deck_size",
+			Message: fmt.Sprintf("Deck must contain exactly 50 cards, found %d", len(cards)),
+		})
+	}
+
+	// Count AP cards
+	apCount := 0
+	colorCounts := make(map[string]int)
+	cardCopies := make(map[string]int)
+
+	for _, card := range cards {
+		// Count AP cards
+		if card.CardType == models.CardTypeAP {
+			apCount++
+		}
+
+		// Count colors
+		if card.Color != "" {
+			colorCounts[card.Color]++
+		}
+
+		// Count card copies
+		cardCopies[card.CardNumber]++
+	}
+
+	// Check AP card count (must be exactly 3)
+	if apCount != 3 {
+		errors = append(errors, DeckValidationError{
+			Field:   "ap_cards",
+			Message: fmt.Sprintf("Deck must contain exactly 3 AP cards, found %d", apCount),
+		})
+	}
+
+	// Check single color requirement
+	var deckColor string
+	colorCount := 0
+	for color, count := range colorCounts {
+		if count > 0 {
+			colorCount++
+			if deckColor == "" {
+				deckColor = color
+			}
+		}
+	}
+
+	if colorCount > 1 {
+		errors = append(errors, DeckValidationError{
+			Field:   "deck_color",
+			Message: "Deck must contain cards of only one color",
+		})
+	}
+
+	// Check card copy limits (usually max 4 copies per card)
+	for cardNumber, copies := range cardCopies {
+		if copies > 4 {
+			errors = append(errors, DeckValidationError{
+				Field:   "card_copies",
+				Message: fmt.Sprintf("Card %s has %d copies, maximum allowed is 4", cardNumber, copies),
+			})
+		}
+	}
+
+	return errors
+}
+
+// ValidateColorEffect checks if a color effect is valid
+func ValidateColorEffect(color string) bool {
+	colorEffects := models.GetColorEffects()
+	_, exists := colorEffects[color]
+	return exists
+}
+
+// ValidateTriggerEffect checks if a trigger effect is valid
+func ValidateTriggerEffect(triggerEffect string) bool {
+	validEffects := []string{
+		models.TriggerEffectDrawCard,
+		models.TriggerEffectColor,
+		models.TriggerEffectActiveBP3000,
+		models.TriggerEffectAddToHand,
+		models.TriggerEffectRushOrAddToHand,
+		models.TriggerEffectSpecial,
+		models.TriggerEffectFinal,
+		models.TriggerEffectNil,
+	}
+
+	for _, effect := range validEffects {
+		if effect == triggerEffect {
+			return true
+		}
+	}
+	return false
 }

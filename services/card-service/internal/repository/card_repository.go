@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -387,15 +386,42 @@ func (r *cardRepository) GetCardEffects(ctx context.Context, cardID uuid.UUID) (
 		return nil, err
 	}
 
-	if card.TriggerEffect == nil {
+	if card.TriggerEffect == "" || card.TriggerEffect == models.TriggerEffectNil {
 		return []models.CardEffect{}, nil
 	}
 
-	var effects []models.CardEffect
-	err = json.Unmarshal(card.TriggerEffect, &effects)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse card effects: %w", err)
+	// Convert simple trigger effect string to CardEffect struct
+	effect := models.CardEffect{
+		Type:        card.TriggerEffect,
+		Description: r.getTriggerEffectDescription(card.TriggerEffect, card.Color),
 	}
 
-	return effects, nil
+	return []models.CardEffect{effect}, nil
+}
+
+func (r *cardRepository) getTriggerEffectDescription(triggerEffect, color string) string {
+	switch triggerEffect {
+	case models.TriggerEffectDrawCard:
+		return "抽一張牌"
+	case models.TriggerEffectColor:
+		colorEffects := models.GetColorEffects()
+		if effect, exists := colorEffects[color]; exists {
+			return effect.Description
+		}
+		return "顏色特殊效果"
+	case models.TriggerEffectActiveBP3000:
+		return "active +3000 bp"
+	case models.TriggerEffectAddToHand:
+		return "加入手牌"
+	case models.TriggerEffectRushOrAddToHand:
+		return "突襲或加入手牌"
+	case models.TriggerEffectSpecial:
+		return "特殊效果"
+	case models.TriggerEffectFinal:
+		return "最終效果"
+	case models.TriggerEffectNil:
+		return "無效果"
+	default:
+		return "未知效果"
+	}
 }

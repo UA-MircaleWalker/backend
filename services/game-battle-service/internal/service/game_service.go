@@ -18,6 +18,7 @@ type GameService interface {
 	CreateGame(ctx context.Context, req *CreateGameRequest) (*GameResponse, error)
 	JoinGame(ctx context.Context, gameID uuid.UUID, playerID uuid.UUID) (*GameResponse, error)
 	StartGame(ctx context.Context, gameID uuid.UUID) (*GameResponse, error)
+	PerformMulligan(ctx context.Context, req *MulliganRequest) (*GameResponse, error)
 	PlayAction(ctx context.Context, req *PlayActionRequest) (*ActionResponse, error)
 	GetGame(ctx context.Context, gameID uuid.UUID, playerID uuid.UUID) (*GameResponse, error)
 	GetActiveGames(ctx context.Context, playerID uuid.UUID) (*ActiveGamesResponse, error)
@@ -31,6 +32,12 @@ type CreateGameRequest struct {
 	GameMode    string        `json:"game_mode" binding:"required"`
 	Player1Deck []models.Card `json:"player1_deck" binding:"required"`
 	Player2Deck []models.Card `json:"player2_deck" binding:"required"`
+}
+
+type MulliganRequest struct {
+	GameID   uuid.UUID `json:"game_id" binding:"required"`
+	PlayerID uuid.UUID `json:"player_id" binding:"required"`
+	Mulligan bool      `json:"mulligan"`
 }
 
 type PlayActionRequest struct {
@@ -411,6 +418,58 @@ func (s *gameService) SurrenderGame(ctx context.Context, gameID uuid.UUID, playe
 	return &GameResponse{
 		Game:    gameInfo,
 		Message: "Game surrendered",
+	}, nil
+}
+
+func (s *gameService) PerformMulligan(ctx context.Context, req *MulliganRequest) (*GameResponse, error) {
+	game, err := s.gameRepo.GetGame(ctx, req.GameID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get game: %w", err)
+	}
+
+	if game.Player1ID != req.PlayerID && game.Player2ID != req.PlayerID {
+		return nil, fmt.Errorf("player not part of this game")
+	}
+
+	// Allow mulligan during WAITING (initial phase) or IN_PROGRESS status
+	if game.Status != models.GameStatusWaiting && game.Status != models.GameStatusInProgress {
+		return nil, fmt.Errorf("mulligan not allowed in current game status: %s", game.Status)
+	}
+
+	// Convert service request to engine request
+	engineReq := &engine.MulliganRequest{
+		GameID:   req.GameID,
+		PlayerID: req.PlayerID,
+		Mulligan: req.Mulligan,
+	}
+
+	// Process mulligan through game engine
+	if err := s.gameEngine.PerformMulligan(ctx, engineReq); err != nil {
+		return nil, fmt.Errorf("failed to perform mulligan: %w", err)
+	}
+
+	// Get updated game state
+	updatedGameState, err := s.gameEngine.GetGameState(ctx, req.GameID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get updated game state: %w", err)
+	}
+
+	// Save updated game state
+	if err := s.gameRepo.SaveGameState(ctx, req.GameID, updatedGameState); err != nil {
+		return nil, fmt.Errorf("failed to save game state: %w", err)
+	}
+
+	gameInfo := s.modelToGameInfo(game)
+
+	logger.Info("Mulligan performed",
+		zap.String("game_id", req.GameID.String()),
+		zap.String("player_id", req.PlayerID.String()),
+		zap.Bool("mulligan", req.Mulligan))
+
+	return &GameResponse{
+		Game:      gameInfo,
+		GameState: updatedGameState,
+		Message:   "Mulligan completed",
 	}, nil
 }
 
