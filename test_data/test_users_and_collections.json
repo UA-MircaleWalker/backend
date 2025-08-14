@@ -1,0 +1,99 @@
+{
+  "test_users": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440001",
+      "username": "pirate_king",
+      "email": "luffy@strawhat.com",
+      "display_name": "海賊王ルフィ",
+      "level": 25,
+      "rank_points": 1850
+    },
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440002", 
+      "username": "swordsman_zoro",
+      "email": "zoro@strawhat.com",
+      "display_name": "剣士ゾロ",
+      "level": 23,
+      "rank_points": 1720
+    }
+  ],
+  "test_collections": [
+    {
+      "user_id": "550e8400-e29b-41d4-a716-446655440001",
+      "card_instances": [
+        {"card_variant_id": "UA25BT-001-UR", "quantity": 1},
+        {"card_variant_id": "UA25BT-001-SR_3", "quantity": 2},
+        {"card_variant_id": "UA25BT-001-SR", "quantity": 3},
+        {"card_variant_id": "UA25BT-002-R_1", "quantity": 4},
+        {"card_variant_id": "UA25BT-003-U", "quantity": 6},
+        {"card_variant_id": "UA25BT-004-C", "quantity": 10},
+        {"card_variant_id": "UA25BT-005-C", "quantity": 8},
+        {"card_variant_id": "UA25BT-050-C", "quantity": 12}
+      ]
+    },
+    {
+      "user_id": "550e8400-e29b-41d4-a716-446655440002",
+      "card_instances": [
+        {"card_variant_id": "UA25BT-001-SR", "quantity": 2},
+        {"card_variant_id": "UA25BT-002-R_1", "quantity": 3},
+        {"card_variant_id": "UA25BT-002-R", "quantity": 4},
+        {"card_variant_id": "UA25BT-003-U", "quantity": 5},
+        {"card_variant_id": "UA25BT-008-U", "quantity": 3},
+        {"card_variant_id": "UA25BT-010-R", "quantity": 2},
+        {"card_variant_id": "UA25BT-050-C", "quantity": 10}
+      ]
+    }
+  ],
+  "test_decks": [
+    {
+      "id": "750e8400-e29b-41d4-a716-446655440001",
+      "user_id": "550e8400-e29b-41d4-a716-446655440001",
+      "name": "ルフィの冒険デッキ",
+      "description": "モンキー・D・ルフィを中心とした攻撃的なデッキ",
+      "color": "RED",
+      "is_active": true,
+      "card_instances": [
+        {"card_variant_id": "UA25BT-001-SR", "quantity": 3},
+        {"card_variant_id": "UA25BT-002-R_1", "quantity": 3},
+        {"card_variant_id": "UA25BT-003-U", "quantity": 4},
+        {"card_variant_id": "UA25BT-004-C", "quantity": 4},
+        {"card_variant_id": "UA25BT-005-C", "quantity": 4},
+        {"card_variant_id": "UA25BT-006-C", "quantity": 4},
+        {"card_variant_id": "UA25BT-007-C", "quantity": 4},
+        {"card_variant_id": "UA25BT-008-U", "quantity": 3},
+        {"card_variant_id": "UA25BT-009-U", "quantity": 3},
+        {"card_variant_id": "UA25BT-010-R", "quantity": 2},
+        {"card_variant_id": "UA25BT-020-U", "quantity": 4},
+        {"card_variant_id": "UA25BT-021-U", "quantity": 4},
+        {"card_variant_id": "UA25BT-022-C", "quantity": 4},
+        {"card_variant_id": "UA25BT-023-C", "quantity": 4},
+        {"card_variant_id": "UA25BT-050-C", "quantity": 3}
+      ]
+    },
+    {
+      "id": "750e8400-e29b-41d4-a716-446655440002",
+      "user_id": "550e8400-e29b-41d4-a716-446655440002", 
+      "name": "ゾロの剣術デッキ",
+      "description": "ロロノア・ゾロの剣術に特化したデッキ",
+      "color": "GREEN",
+      "is_active": true,
+      "card_instances": [
+        {"card_variant_id": "UA25BT-002-R_1", "quantity": 3},
+        {"card_variant_id": "UA25BT-001-SR", "quantity": 2},
+        {"card_variant_id": "UA25BT-003-U", "quantity": 4},
+        {"card_variant_id": "UA25BT-004-C", "quantity": 4},
+        {"card_variant_id": "UA25BT-005-C", "quantity": 4},
+        {"card_variant_id": "UA25BT-006-C", "quantity": 4},
+        {"card_variant_id": "UA25BT-007-C", "quantity": 4},
+        {"card_variant_id": "UA25BT-008-U", "quantity": 3},
+        {"card_variant_id": "UA25BT-009-U", "quantity": 3},
+        {"card_variant_id": "UA25BT-010-R", "quantity": 2},
+        {"card_variant_id": "UA25BT-020-U", "quantity": 4},
+        {"card_variant_id": "UA25BT-021-U", "quantity": 4},
+        {"card_variant_id": "UA25BT-022-C", "quantity": 4},
+        {"card_variant_id": "UA25BT-023-C", "quantity": 4},
+        {"card_variant_id": "UA25BT-050-C", "quantity": 3}
+      ]
+    }
+  ]
+}

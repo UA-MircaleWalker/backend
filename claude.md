@@ -296,3 +296,153 @@ POST /api/v1/games/{gameId}/surrender        # 投降
 - **Database**: ua_game
 - **Username**: ua_user
 - **Password**: ua_password
+
+---
+
+## 🗂️ 專案結構與導航
+
+### 📁 目錄組織
+```
+ua/
+├── 📄 CLAUDE.md                    # 本文件：專案開發指引
+├── 📄 README.md                    # 專案概述和快速開始
+├── 📄 PROJECT_STRUCTURE.md         # 完整專案結構說明
+├── 📄 docker-compose.yml           # Docker 服務編排
+│
+├── 📂 docs/                        # 📚 文檔目錄
+│   ├── 📂 api/                     # API 設計文檔
+│   │   └── API_Documentation.md    # 完整 API 規範
+│   ├── 📂 testing/                 # 🧪 測試文檔
+│   │   ├── BOB_KAGE_GAME_TEST.md   # 快速測試指南
+│   │   ├── COMPLETE_GAME_TEST.md   # 完整遊戲測試流程
+│   │   ├── API_TESTING_GUIDE.md    # API 測試指南
+│   │   └── GAME_FLOW_TESTING.md    # 遊戲流程手動測試
+│   └── rules.md                    # Union Arena 遊戲規則
+│
+├── 📂 test_data/                   # 🎯 測試數據
+│   ├── FULL_50_CARDS_DECK.json    # 完整50張卡組（正式遊戲）
+│   ├── bob_kage_test.json          # Bob vs Kage 簡化測試
+│   └── swagger_test_deck.json      # Swagger UI 測試用
+│
+├── 📂 scripts/                     # 🔧 測試工具
+│   └── 📂 testing/                 # 測試腳本
+│       ├── test_api.sh             # API 基本測試
+│       ├── test_game_flow.sh       # 完整遊戲流程測試
+│       └── generate_test_token.go  # 測試 Token 生成
+│
+├── 📂 services/                    # 🚀 微服務
+│   ├── card-service/               # 卡牌服務 (8001)
+│   ├── user-service/               # 用戶服務 (8002)
+│   ├── matchmaking-service/        # 匹配服務 (8003)
+│   ├── game-battle-service/        # 對戰服務 (8004)
+│   └── game-result-service/        # 結果服務 (8005)
+│
+├── 📂 shared/                      # 共享程式庫
+└── 📂 database/                    # 資料庫相關
+```
+
+### 🚀 快速開發指引
+
+#### 1. 快速測試流程
+```bash
+# 啟動所有服務
+docker compose up -d
+
+# 執行快速測試
+./scripts/testing/test_api.sh
+
+# 或使用 Swagger UI 測試
+# http://localhost:8004/swagger/index.html
+```
+
+#### 2. 測試數據選擇
+- **快速測試**: `docs/testing/BOB_KAGE_GAME_TEST.md` (簡化4張卡)
+- **完整測試**: `test_data/FULL_50_CARDS_DECK.json` (正式50張卡)
+- **API測試**: `docs/testing/API_TESTING_GUIDE.md`
+
+#### 3. 開發重點文件
+- **核心邏輯**: `services/game-battle-service/internal/engine/`
+- **API處理**: `services/*/internal/handler/`
+- **資料模型**: `shared/models/`
+
+### 🔧 開發工作流程
+
+#### 新功能開發
+1. 📖 查閱相關文檔：`docs/api/API_Documentation.md`
+2. 🧪 參考測試：`docs/testing/` 目錄
+3. 💻 實現功能：遵循現有架構模式
+4. ✅ 執行測試：`scripts/testing/test_integration.sh`
+5. 📝 更新文檔：同步更新相關文檔
+
+#### 除錯流程
+1. 🔍 檢查服務狀態：`docker compose ps`
+2. 📋 查看日誌：`docker compose logs -f [service]`
+3. 🧪 單元測試：使用 Swagger UI 或測試腳本
+4. 🌐 端到端測試：`docs/testing/COMPLETE_GAME_TEST.md`
+
+### ⚡ 性能優化重點
+
+#### 已實現的優化
+- ✅ **認證架構**: CreateGame 公開，JoinGame 需要認證
+- ✅ **卡組驗證**: 支持完整50張卡組規則
+- ✅ **Swagger路徑**: 修復重複路徑問題
+- ✅ **Docker構建**: 優化構建和重啟流程
+
+#### 待優化項目
+- 🔄 WebSocket 連接管理
+- 🔄 Redis 快取策略
+- 🔄 資料庫查詢優化
+- 🔄 並發遊戲處理
+
+### 📋 測試檢查清單
+
+#### 基本功能測試
+- [ ] 用戶註冊和登錄
+- [ ] 創建和加入遊戲
+- [ ] 調度機制 (Mulligan)
+- [ ] 回合階段執行
+- [ ] 卡牌動作處理
+
+#### 整合測試
+- [ ] 完整遊戲流程
+- [ ] 多用戶並發
+- [ ] 錯誤處理機制
+- [ ] 認證和授權
+- [ ] 資料持久化
+
+### 🚨 常見問題解決
+
+#### Docker 相關
+- **服務無法啟動**: `docker compose down && docker compose up -d --build`
+- **端口衝突**: 檢查 `docker-compose.yml` 端口配置
+- **資料庫連接**: 確認 `database/init.sql` 正常執行
+
+#### API 測試
+- **401 未授權**: 檢查 Token 是否正確設置
+- **卡組驗證錯誤**: 確保使用50張完整卡組
+- **遊戲狀態錯誤**: 按照正確的API調用順序
+
+---
+
+## 🎯 開發注意事項
+
+### 認證機制
+- **CreateGame**: 公開端點，不需要 Token
+- **其他遊戲操作**: 需要 Bearer Token 認證
+- **Token格式**: `Authorization: Bearer {access_token}`
+
+### 遊戲規則驗證
+- **卡組大小**: 嚴格50張卡片（包含3張AP卡）
+- **回合階段**: 必須按順序執行
+- **動作驗證**: 根據當前遊戲狀態驗證
+
+### 測試數據使用
+- **開發測試**: 使用 `bob_kage_test.json`
+- **正式測試**: 使用 `FULL_50_CARDS_DECK.json`
+- **API測試**: 參考 `docs/testing/BOB_KAGE_GAME_TEST.md`
+
+### 文件更新規範
+- **新增API**: 更新 `docs/api/API_Documentation.md`
+- **新增測試**: 更新 `docs/testing/` 相關文檔
+- **結構變更**: 更新 `PROJECT_STRUCTURE.md`
+- **開發指引**: 更新本文件 (`CLAUDE.md`)

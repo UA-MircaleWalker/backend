@@ -40,5 +40,3 @@ Thumbs.db
 .env.test.local
 .env.production.local
 .claude/settings.local.json
-
-test_data/

@@ -235,12 +235,20 @@ Access monitoring dashboards:
 
 ## 🔧 Development
 
+### Claude Code Development Setup
+⚠️ **IMPORTANT**: All Claude Code development should reference [CLAUDE.md](./CLAUDE.md) for:
+- Project architecture and rules
+- API flow documentation  
+- Testing strategies and data
+- Development best practices
+- File organization standards
+
 ### Local Development Setup
 ```bash
 # Install dependencies
 go mod download
 
-# Install development tools
+# Install development tools  
 make install-tools
 
 # Start databases only
@@ -250,6 +258,13 @@ docker-compose up -d postgres redis
 cd services/card-service
 go run cmd/main.go
 ```
+
+### Development Workflow
+1. 📖 **Read Development Guide**: Check `CLAUDE.md` for current project status
+2. 🧪 **Test Current State**: Use `docs/testing/BOB_KAGE_GAME_TEST.md` for quick validation
+3. 💻 **Implement Changes**: Follow existing architectural patterns
+4. ✅ **Run Tests**: Use `scripts/testing/` automated tests
+5. 📝 **Update Docs**: Keep `CLAUDE.md` and relevant docs current
 
 ### Code Structure
 ```
@@ -275,11 +290,13 @@ ua/
 ```
 
 ### Adding New Features
-1. **Create feature branch**: `git checkout -b feature/new-feature`
-2. **Implement with tests**: Maintain >80% coverage
-3. **Update documentation**: API docs and README
-4. **Integration testing**: Test cross-service functionality
-5. **Create pull request**: Include tests and documentation
+1. **Review Architecture**: Check `CLAUDE.md` for current system design
+2. **Create feature branch**: `git checkout -b feature/new-feature`
+3. **Reference Test Data**: Use appropriate test datasets from `test_data/`
+4. **Implement with tests**: Maintain >80% coverage, update `docs/testing/`
+5. **Update documentation**: API docs, CLAUDE.md, and testing guides
+6. **Integration testing**: Use `docs/testing/COMPLETE_GAME_TEST.md`
+7. **Create pull request**: Include tests, docs, and validation results
 
 ## 🔐 Security
 
@@ -362,33 +379,50 @@ PROMETHEUS_URL=http://prometheus:9090
 
 ## 📄 Documentation
 
-### 📁 Project Structure
-See [PROJECT_STRUCTURE.md](./PROJECT_STRUCTURE.md) for complete project organization and file locations.
+### 📁 Project Structure & Development Guide
+- **Complete Structure Guide**: [PROJECT_STRUCTURE.md](./PROJECT_STRUCTURE.md)
+- **Development Instructions**: [CLAUDE.md](./CLAUDE.md) - 🎯 **Essential for Claude Code Development**
 
 ### 📚 API Documentation
-- **Full API Docs**: [docs/api/API_Documentation.md](./docs/api/API_Documentation.md)
-- **Interactive Swagger**:
+- **Full API Specs**: [docs/api/API_Documentation.md](./docs/api/API_Documentation.md)
+- **Interactive Swagger UI**:
   - Cards: http://localhost:8001/swagger/index.html
-  - Users: http://localhost:8002/swagger/index.html
+  - Users: http://localhost:8002/swagger/index.html  
   - Matchmaking: http://localhost:8003/swagger/index.html
-  - Games: http://localhost:8004/swagger/index.html
+  - Games: http://localhost:8004/swagger/index.html ⭐ **Primary Testing Interface**
   - Results: http://localhost:8005/swagger/index.html
 
 ### 🧪 Testing Documentation
-- **Quick Test Guide**: [docs/testing/BOB_KAGE_GAME_TEST.md](./docs/testing/BOB_KAGE_GAME_TEST.md)
-- **Complete Test Flow**: [docs/testing/COMPLETE_GAME_TEST.md](./docs/testing/COMPLETE_GAME_TEST.md)
+- **Quick Start Test**: [docs/testing/BOB_KAGE_GAME_TEST.md](./docs/testing/BOB_KAGE_GAME_TEST.md) 🎯
+- **Complete Game Flow**: [docs/testing/COMPLETE_GAME_TEST.md](./docs/testing/COMPLETE_GAME_TEST.md)
 - **API Testing Guide**: [docs/testing/API_TESTING_GUIDE.md](./docs/testing/API_TESTING_GUIDE.md)
+- **Manual Testing**: [docs/testing/GAME_FLOW_TESTING.md](./docs/testing/GAME_FLOW_TESTING.md)
 
-### 🎮 Game Rules
+### 🎮 Game Rules & Schema
 - **Union Arena Rules**: [docs/rules.md](./docs/rules.md)
-
-### 📊 Database Schema
 - **PostgreSQL Schema**: [database/init.sql](./database/init.sql)
 - **Redis Schema**: [database/redis_schema.md](./database/redis_schema.md)
 
-### 🧪 Test Data & Scripts
-- **Test Data**: Located in [test_data/](./test_data/) directory
-- **Test Scripts**: Located in [scripts/testing/](./scripts/testing/) directory
+### 🔧 Test Resources
+- **Test Data**: [test_data/](./test_data/) - JSON test decks and scenarios
+- **Test Scripts**: [scripts/testing/](./scripts/testing/) - Automated testing tools
+- **50-Card Deck**: [test_data/FULL_50_CARDS_DECK.json](./test_data/FULL_50_CARDS_DECK.json) 🏆
+- **Quick 4-Card Test**: [test_data/bob_kage_test.json](./test_data/bob_kage_test.json) ⚡
+
+### 🚀 Quick Development Start
+```bash
+# 1. Start all services
+docker compose up -d
+
+# 2. Run quick API test
+./scripts/testing/test_api.sh
+
+# 3. Test with Swagger UI
+open http://localhost:8004/swagger/index.html
+
+# 4. Use Bob vs Kage test data
+# See docs/testing/BOB_KAGE_GAME_TEST.md for complete flow
+```
 
 ## 🐳 Container Images
 

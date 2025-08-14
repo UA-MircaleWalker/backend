@@ -1,0 +1,168 @@
+{
+  "card_api_tests": {
+    "get_card_by_variant_id": {
+      "endpoint": "GET /api/v1/cards/variant/{variant_id}",
+      "test_cases": [
+        {
+          "variant_id": "UA25BT-001-UR",
+          "expected_result": "success",
+          "description": "Get Ultra Rare Luffy card"
+        },
+        {
+          "variant_id": "UA25BT-001-SR_3",
+          "expected_result": "success", 
+          "description": "Get 3-star Super Rare Luffy card"
+        },
+        {
+          "variant_id": "UA25BT-999-INVALID",
+          "expected_result": "404_not_found",
+          "description": "Non-existent card variant"
+        }
+      ]
+    },
+    "get_card_variants": {
+      "endpoint": "GET /api/v1/cards/variants/{number}",
+      "test_cases": [
+        {
+          "card_number": "UA25BT-001",
+          "expected_variants": ["UR", "SR_3", "SR"],
+          "description": "Get all Luffy card variants"
+        },
+        {
+          "card_number": "UA25BT-999",
+          "expected_result": "404_not_found",
+          "description": "Non-existent base card"
+        }
+      ]
+    },
+    "get_cards_by_rarity": {
+      "endpoint": "GET /api/v1/cards/rarities?rarities={rarities}",
+      "test_cases": [
+        {
+          "rarities": "UR,OBC,SP",
+          "expected_result": "success",
+          "description": "Get highest rarity cards"
+        },
+        {
+          "rarities": "SR_3,SR_2,SR_1,SR", 
+          "expected_result": "success",
+          "description": "Get all Super Rare variants"
+        },
+        {
+          "rarities": "INVALID_RARITY",
+          "expected_result": "400_bad_request",
+          "description": "Invalid rarity filter"
+        }
+      ]
+    },
+    "get_rarity_tiers": {
+      "endpoint": "GET /api/v1/cards/rarity-tiers",
+      "test_cases": [
+        {
+          "expected_tiers": {
+            "OBC": 10,
+            "SP": 9,
+            "PR": 9,
+            "UR": 8,
+            "SR_3": 7,
+            "SR_2": 6,
+            "SR_1": 5,
+            "SR": 4,
+            "C": -6
+          },
+          "description": "Get rarity tier mappings"
+        }
+      ]
+    }
+  },
+  "game_api_tests": {
+    "create_game_with_card_variants": {
+      "endpoint": "POST /api/v1/games",
+      "test_payload": {
+        "player1_id": "550e8400-e29b-41d4-a716-446655440001",
+        "player2_id": "550e8400-e29b-41d4-a716-446655440002",
+        "game_mode": "RANKED",
+        "player1_deck": "test_deck_with_variants",
+        "player2_deck": "test_deck_with_variants"
+      },
+      "description": "Create game using CardVariantID system"
+    },
+    "deck_validation": {
+      "endpoint": "POST /api/v1/cards/validate-deck",
+      "test_cases": [
+        {
+          "deck": [
+            {"card_variant_id": "UA25BT-001-SR", "quantity": 3},
+            {"card_variant_id": "UA25BT-001-UR", "quantity": 1},
+            {"card_variant_id": "UA25BT-002-R_1", "quantity": 4}
+          ],
+          "expected_validation": {
+            "total_cards_valid": false,
+            "reason": "Deck must have exactly 50 cards"
+          },
+          "description": "Insufficient cards validation"
+        },
+        {
+          "deck": "valid_50_card_deck",
+          "expected_validation": {
+            "is_valid": true,
+            "total_cards": 50,
+            "ap_cards_count": 3
+          },
+          "description": "Valid 50-card deck with 3 AP cards"
+        }
+      ]
+    }
+  },
+  "integration_tests": {
+    "card_variant_lifecycle": {
+      "description": "Test complete card variant management lifecycle",
+      "steps": [
+        {
+          "step": 1,
+          "action": "Create base card with multiple rarities",
+          "endpoint": "POST /api/v1/cards",
+          "variants": ["UR", "SR_3", "SR", "R", "C"]
+        },
+        {
+          "step": 2,
+          "action": "Query all variants of the base card",
+          "endpoint": "GET /api/v1/cards/variants/{card_number}"
+        },
+        {
+          "step": 3,
+          "action": "Add variants to user collection",
+          "endpoint": "POST /api/v1/collections/add",
+          "data": "different_rarity_instances"
+        },
+        {
+          "step": 4,
+          "action": "Create deck using specific variants",
+          "endpoint": "POST /api/v1/decks",
+          "validation": "50_cards_exactly"
+        },
+        {
+          "step": 5,
+          "action": "Start game with variant-based decks",
+          "endpoint": "POST /api/v1/games",
+          "validation": "game_initialization_success"
+        }
+      ]
+    },
+    "rarity_filtering_performance": {
+      "description": "Test performance with 18 different rarities",
+      "test_data_size": "10000_cards_per_rarity",
+      "queries": [
+        "Filter by single rarity (C)",
+        "Filter by rarity group (all SR variants)",
+        "Filter by tier range (tier 5 and above)",
+        "Sort by rarity tier descending"
+      ],
+      "performance_targets": {
+        "single_rarity_query": "<100ms",
+        "multi_rarity_query": "<200ms",
+        "tier_sort_query": "<300ms"
+      }
+    }
+  }
+}

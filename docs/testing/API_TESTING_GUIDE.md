@@ -332,10 +332,10 @@ wrk -t12 -c400 -d30s -H "Authorization: Bearer {token}" \
 
 ## 🔗 相關連結
 
-- [API 架構文檔](./CLAUDE.md)
-- [資料庫 Schema](./database/init.sql)
-- [Docker 配置](./docker-compose.yml)
-- [測試數據](./test_data/)
+- [API 架構文檔](../../CLAUDE.md)
+- [資料庫 Schema](../../database/init.sql)
+- [Docker 配置](../../docker-compose.yml)
+- [測試數據](../../test_data/)
 
 ## 📞 支援
 
