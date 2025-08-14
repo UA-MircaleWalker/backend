@@ -107,55 +107,55 @@ func (e *gameEngine) InitializeGame(ctx context.Context, req *InitGameRequest) (
 		return nil, fmt.Errorf("player2 deck size invalid: %d cards (required: 50)", len(req.Player2.Deck))
 	}
 
-	// 驗證卡組組成：每個卡組必須包含正好3張AP卡
-	p1APCount := 0
-	p2APCount := 0
+	// 只需要驗證卡組中沒有AP類型的卡片（因為AP不是卡片）
 	for _, card := range req.Player1.Deck {
 		if card.CardType == "AP" {
-			p1APCount++
+			return nil, fmt.Errorf("player1 deck contains invalid AP card - AP is not a physical card")
 		}
 	}
 	for _, card := range req.Player2.Deck {
 		if card.CardType == "AP" {
-			p2APCount++
+			return nil, fmt.Errorf("player2 deck contains invalid AP card - AP is not a physical card")
 		}
 	}
-	if p1APCount != 3 {
-		return nil, fmt.Errorf("player1 deck must contain exactly 3 AP cards (found: %d)", p1APCount)
-	}
-	if p2APCount != 3 {
-		return nil, fmt.Errorf("player2 deck must contain exactly 3 AP cards (found: %d)", p2APCount)
-	}
 
+	// 初始化玩家1 - 根據 Union Arena 規則
 	player1 := &models.Player{
-		ID:            req.Player1.UserID,
-		AP:            3,
-		MaxAP:         3,
-		Energy:        make(map[string]int),
-		Hand:          []models.Card{},
-		Deck:          req.Player1.Deck,
-		LifeArea:      []models.Card{},
-		Characters:    []models.CardInPlay{},
-		Fields:        []models.CardInPlay{},
-		Events:        []models.CardInPlay{},
-		Graveyard:     []models.Card{},
-		RemovedCards:  []models.Card{},
+		ID:       req.Player1.UserID,
+		AP:       3, // 初始 AP
+		MaxAP:    3, // 初始最大 AP
+		Energy:   make(map[string]int),
+		Hand:     []models.Card{},
+		Deck:     req.Player1.Deck,
+		LifeArea: []models.Card{}, // 將在調度後設置7張卡
+		Board: models.Board{
+			FrontLine:   make([]models.CardInPlay, 0, 4), // 前線：最多4張
+			EnergyLine:  make([]models.CardInPlay, 0, 4), // 能源線：最多4張
+			OutsideArea: []models.Card{},                 // 場外區
+			RemoveArea:  []models.Card{},                 // 移除區
+		},
+		Graveyard:     []models.Card{}, // 新增墨地欄位
+		RemovedCards:  []models.Card{}, // 新增移除卡片欄位
 		ExtraDrawUsed: false,
 	}
 
+	// 初始化玩家2 - 根據 Union Arena 規則
 	player2 := &models.Player{
-		ID:            req.Player2.UserID,
-		AP:            3,
-		MaxAP:         3,
-		Energy:        make(map[string]int),
-		Hand:          []models.Card{},
-		Deck:          req.Player2.Deck,
-		LifeArea:      []models.Card{},
-		Characters:    []models.CardInPlay{},
-		Fields:        []models.CardInPlay{},
-		Events:        []models.CardInPlay{},
-		Graveyard:     []models.Card{},
-		RemovedCards:  []models.Card{},
+		ID:       req.Player2.UserID,
+		AP:       3, // 初始 AP
+		MaxAP:    3, // 初始最大 AP
+		Energy:   make(map[string]int),
+		Hand:     []models.Card{},
+		Deck:     req.Player2.Deck,
+		LifeArea: []models.Card{}, // 將在調度後設置7張卡
+		Board: models.Board{
+			FrontLine:   make([]models.CardInPlay, 0, 4), // 前線：最多4張
+			EnergyLine:  make([]models.CardInPlay, 0, 4), // 能源線：最多4張
+			OutsideArea: []models.Card{},                 // 場外區
+			RemoveArea:  []models.Card{},                 // 移除區
+		},
+		Graveyard:     []models.Card{}, // 新增墨地欄位
+		RemovedCards:  []models.Card{}, // 新增移除卡片欄位
 		ExtraDrawUsed: false,
 	}
 
@@ -169,6 +169,7 @@ func (e *gameEngine) InitializeGame(ctx context.Context, req *InitGameRequest) (
 		e.drawCard(player2)
 	}
 
+	// 初始化遊戲狀態
 	gameState := &models.GameState{
 		Turn:         1,
 		Phase:        models.StartPhase,
@@ -178,17 +179,9 @@ func (e *gameEngine) InitializeGame(ctx context.Context, req *InitGameRequest) (
 			req.Player1.UserID: player1,
 			req.Player2.UserID: player2,
 		},
-		Board: &models.Board{
-			CharacterZones: make([][]models.CardInPlay, 2),
-			FieldZone:      []models.CardInPlay{},
-		},
 		ActionLog:         []models.GameAction{},
 		MulliganCompleted: make(map[uuid.UUID]bool),
 		LifeAreaSetup:     false,
-	}
-
-	for i := range gameState.Board.CharacterZones {
-		gameState.Board.CharacterZones[i] = make([]models.CardInPlay, 5)
 	}
 
 	e.gameStates[req.GameID] = gameState
@@ -730,7 +723,7 @@ func (e *gameEngine) processPlayCard(gameState *models.GameState, action *models
 
 	cardInPlay := models.CardInPlay{
 		Card:      playedCard,
-		Status:    models.CardStatus{CanAct: false, CanAttack: false, CanBlock: true, IsExhausted: true},
+		Status:    models.CardStatus{CanAct: false, CanAttack: false, CanBlock: true, IsActive: false, IsRested: true},
 		Modifiers: []models.CardModifier{},
 		Owner:     action.PlayerID,
 	}
@@ -743,9 +736,15 @@ func (e *gameEngine) processPlayCard(gameState *models.GameState, action *models
 			return
 		}
 		cardInPlay.Position = *actionData.Position
-		player.Characters = append(player.Characters, cardInPlay)
+		// 將角色卡放入適當的區域（先預設放入能源線，後續可移至前線）
+		if actionData.Position != nil && actionData.Position.Zone == "front_line" {
+			player.Board.FrontLine = append(player.Board.FrontLine, cardInPlay)
+		} else {
+			player.Board.EnergyLine = append(player.Board.EnergyLine, cardInPlay)
+		}
 	case models.CardTypeField:
-		gameState.Board.FieldZone = append(gameState.Board.FieldZone, cardInPlay)
+		// 場域卡只能放在能源線
+		player.Board.EnergyLine = append(player.Board.EnergyLine, cardInPlay)
 	case models.CardTypeEvent:
 		if playedCard.TriggerEffect != "" && playedCard.TriggerEffect != models.TriggerEffectNil {
 			// Convert simple trigger effect string to CardEffect struct
@@ -785,9 +784,10 @@ func (e *gameEngine) processAttack(gameState *models.GameState, action *models.G
 	player := gameState.Players[action.PlayerID]
 	var attacker *models.CardInPlay
 
-	for i := range player.Characters {
-		if player.Characters[i].Card.ID == *actionData.CardID {
-			attacker = &player.Characters[i]
+	// 在前線尋找攻擊者
+	for i := range player.Board.FrontLine {
+		if player.Board.FrontLine[i].Card.ID == *actionData.CardID {
+			attacker = &player.Board.FrontLine[i]
 			break
 		}
 	}
@@ -798,7 +798,7 @@ func (e *gameEngine) processAttack(gameState *models.GameState, action *models.G
 		return
 	}
 
-	if !attacker.Status.CanAttack || attacker.Status.IsExhausted {
+	if !attacker.Status.CanAttack || !attacker.Status.IsActive {
 		result.Success = false
 		result.Error = "character cannot attack"
 		return
@@ -808,7 +808,8 @@ func (e *gameEngine) processAttack(gameState *models.GameState, action *models.G
 	opponent := gameState.Players[*opponentID]
 
 	// 設置攻擊者為休息狀態
-	attacker.Status.IsExhausted = true
+	attacker.Status.IsActive = false
+	attacker.Status.IsRested = true
 	attacker.Status.CanAttack = false
 
 	// 判斷攻擊目標類型
@@ -843,9 +844,10 @@ func (e *gameEngine) processAttack(gameState *models.GameState, action *models.G
 		}
 
 		var defender *models.CardInPlay
-		for i := range opponent.Characters {
-			if opponent.Characters[i].Card.ID == *actionData.TargetID {
-				defender = &opponent.Characters[i]
+		// 在對手前線尋找防禦者
+		for i := range opponent.Board.FrontLine {
+			if opponent.Board.FrontLine[i].Card.ID == *actionData.TargetID {
+				defender = &opponent.Board.FrontLine[i]
 				break
 			}
 		}
@@ -880,9 +882,13 @@ func (e *gameEngine) processAttack(gameState *models.GameState, action *models.G
 		// 比較BP決定戰鬥結果
 		if attackerBP >= defenderBP {
 			// 攻擊方獲勝，防禦方角色卡退場
-			for i, char := range opponent.Characters {
+			// 從前線移除被擊敗的卡片
+			for i, char := range opponent.Board.FrontLine {
 				if char.Card.ID == defender.Card.ID {
-					opponent.Characters = append(opponent.Characters[:i], opponent.Characters[i+1:]...)
+					// 將被擊敗的卡片移至場外區
+					opponent.Board.OutsideArea = append(opponent.Board.OutsideArea, defender.Card)
+					// 從前線移除
+					opponent.Board.FrontLine = append(opponent.Board.FrontLine[:i], opponent.Board.FrontLine[i+1:]...)
 					opponent.Graveyard = append(opponent.Graveyard, defender.Card)
 					break
 				}
@@ -1012,9 +1018,10 @@ func (e *gameEngine) advanceTurn(gameState *models.GameState) *models.GameState 
 		e.drawCard(player)
 	}
 
-	for i := range player.Characters {
-		player.Characters[i].Status.CanAttack = true
-		player.Characters[i].Status.IsExhausted = false
+	for i := range player.Board.FrontLine {
+		player.Board.FrontLine[i].Status.CanAttack = true
+		player.Board.FrontLine[i].Status.IsActive = true
+		player.Board.FrontLine[i].Status.IsRested = false
 	}
 
 	return gameState

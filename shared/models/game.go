@@ -64,37 +64,42 @@ type Game struct {
 	UpdatedAt    time.Time       `json:"updated_at" db:"updated_at"`
 }
 
+// GameState 代表遊戲的當前狀態
 type GameState struct {
-	Turn               int                   `json:"turn"`
-	Phase              Phase                 `json:"phase"`
-	ActivePlayer       uuid.UUID             `json:"active_player"`
-	FirstPlayer        uuid.UUID             `json:"first_player"`  // 先攻玩家ID
-	Players            map[uuid.UUID]*Player `json:"players"`
-	Board              *Board                `json:"board"`
-	ActionLog          []GameAction          `json:"action_log"`
-	MulliganCompleted  map[uuid.UUID]bool    `json:"mulligan_completed"`  // 記錄每個玩家是否完成調度
-	LifeAreaSetup      bool                  `json:"life_area_setup"`     // 記錄是否已設置生命區
+	Turn              int                   `json:"turn"`
+	Phase             Phase                 `json:"phase"`
+	ActivePlayer      uuid.UUID             `json:"active_player"`
+	FirstPlayer       uuid.UUID             `json:"first_player"`       // 先攻玩家ID
+	Players           map[uuid.UUID]*Player `json:"players"`
+	ActionLog         []GameAction          `json:"action_log"`
+	MulliganCompleted map[uuid.UUID]bool    `json:"mulligan_completed"` // 記錄每個玩家是否完成調度
+	LifeAreaSetup     bool                  `json:"life_area_setup"`    // 記錄是否已設置生命區
 }
 
+// Player 代表遊戲中的玩家
+// 根據 Union Arena 規則，每個玩家都有自己的區域
 type Player struct {
-	ID              uuid.UUID      `json:"id"`
-	AP              int            `json:"ap"`
-	MaxAP           int            `json:"max_ap"`
-	Energy          map[string]int `json:"energy"`
-	Hand            []Card         `json:"hand"`
-	Deck            []Card         `json:"deck"`
-	LifeArea        []Card         `json:"life_area"`     // 生命區：7張背面朝上的卡片，遊戲開始時從卡組頂部設置
-	Characters      []CardInPlay   `json:"characters"`
-	Fields          []CardInPlay   `json:"fields"`
-	Events          []CardInPlay   `json:"events"`
-	Graveyard       []Card         `json:"graveyard"`
-	RemovedCards    []Card         `json:"removed_cards"`
-	ExtraDrawUsed   bool           `json:"extra_draw_used"` // 本回合是否已使用額外抽卡
+	ID            uuid.UUID      `json:"id"`
+	AP            int            `json:"ap"`             // 當前可用AP
+	MaxAP         int            `json:"max_ap"`         // 本回合最大AP
+	Energy        map[string]int `json:"energy"`         // 各種顏色能源數量
+	Hand          []Card         `json:"hand"`           // 手牌
+	Deck          []Card         `json:"deck"`           // 卡組區
+	LifeArea      []Card         `json:"life_area"`      // 生命區：7張背面朝上的卡片
+	Board         Board          `json:"board"`          // 玩家的場地區域
+	Graveyard     []Card         `json:"graveyard"`      // 墓地（場外區的別名，為了兼容）
+	RemovedCards  []Card         `json:"removed_cards"`  // 移除的卡片（移除區的別名，為了兼容）
+	ExtraDrawUsed bool           `json:"extra_draw_used"` // 本回合是否已使用額外抽卡
 }
 
+// Board 代表每個玩家的遊戲場地區域
+// 根據 Union Arena 規則第三章：遊戲區域定義
 type Board struct {
-	CharacterZones [][]CardInPlay `json:"character_zones"`
-	FieldZone      []CardInPlay   `json:"field_zone"`
+	// 玩家場地區域（每個玩家都有自己的這些區域）
+	FrontLine   []CardInPlay `json:"front_line"`   // 前線：最多4張角色卡
+	EnergyLine  []CardInPlay `json:"energy_line"`  // 能源線：最多4張角色卡和場域卡
+	OutsideArea []Card       `json:"outside_area"` // 場外區：退場的卡片
+	RemoveArea  []Card       `json:"remove_area"`  // 移除區：被移除的卡片
 }
 
 type CardInPlay struct {
@@ -105,16 +110,20 @@ type CardInPlay struct {
 	Owner     uuid.UUID      `json:"owner"`
 }
 
+// Position 表示卡片在場上的具體位置
 type Position struct {
-	Zone int `json:"zone"`
-	Slot int `json:"slot"`
+	Zone string `json:"zone"` // "front_line", "energy_line", "outside_area", "remove_area"
+	Slot int    `json:"slot"` // 在該區域中的位置索引 (0-3 for front_line/energy_line)
 }
 
+// CardStatus 表示卡片的狀態
+// 根據 Union Arena 規則：活動(Active)/休息(Rested) 狀態
 type CardStatus struct {
-	CanAct      bool `json:"can_act"`
-	CanAttack   bool `json:"can_attack"`
-	CanBlock    bool `json:"can_block"`
-	IsExhausted bool `json:"is_exhausted"`
+	IsActive    bool `json:"is_active"`    // 活動狀態：直向放置，可以攻擊和防禦
+	IsRested    bool `json:"is_rested"`    // 休息狀態：橫向放置，剛登場、攻擊或防禦後的狀態
+	CanAttack   bool `json:"can_attack"`   // 是否可以攻擊
+	CanBlock    bool `json:"can_block"`    // 是否可以防禦
+	CanAct      bool `json:"can_act"`      // 是否可以行動（綜合判定）
 }
 
 type CardModifier struct {

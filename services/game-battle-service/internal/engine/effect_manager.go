@@ -5,10 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/google/uuid"
-	"go.uber.org/zap"
 	"ua/shared/logger"
 	"ua/shared/models"
+
+	"github.com/google/uuid"
+	"go.uber.org/zap"
 )
 
 type EffectManager interface {
@@ -78,7 +79,7 @@ func (em *effectManager) ApplyEffect(ctx context.Context, gameState *models.Game
 // 檢查場上所有卡牌是否有符合觸發條件的效果，並執行符合條件的效果
 func (em *effectManager) ProcessTriggers(ctx context.Context, gameState *models.GameState, triggerType string, triggerData map[string]interface{}) error {
 	for _, player := range gameState.Players {
-		allCards := append(player.Characters, player.Fields...)
+		allCards := append(player.Board.FrontLine, player.Board.EnergyLine...)
 
 		for _, cardInPlay := range allCards {
 			if cardInPlay.Card.TriggerEffect != "" && cardInPlay.Card.TriggerEffect != models.TriggerEffectNil {
@@ -162,7 +163,7 @@ func (em *effectManager) checkCharacterCountCondition(gameState *models.GameStat
 
 	minCount, hasMin := condition["min"].(float64)
 	maxCount, hasMax := condition["max"].(float64)
-	actualCount := float64(len(player.Characters))
+	actualCount := float64(len(player.Board.FrontLine))
 
 	if hasMin && actualCount < minCount {
 		return false
@@ -362,7 +363,7 @@ func (p *BoostEffectProcessor) Process(ctx context.Context, gameState *models.Ga
 	}
 
 	for _, player := range gameState.Players {
-		for i, character := range player.Characters {
+		for i, character := range player.Board.FrontLine {
 			if character.Card.ID == targetCardID {
 				modifier := models.CardModifier{
 					Type:      "bp_boost",
@@ -371,7 +372,7 @@ func (p *BoostEffectProcessor) Process(ctx context.Context, gameState *models.Ga
 					Source:    sourceCard.ID,
 					AppliedAt: gameState.Turn,
 				}
-				player.Characters[i].Modifiers = append(player.Characters[i].Modifiers, modifier)
+				player.Board.FrontLine[i].Modifiers = append(player.Board.FrontLine[i].Modifiers, modifier)
 				return nil
 			}
 		}
@@ -467,13 +468,13 @@ func NewTurnManager() TurnManager {
 // 根據Union Arena規則設置AP、抽卡、重置所有角色狀態
 func (tm *turnManager) ProcessTurnStart(ctx context.Context, gameState *models.GameState) error {
 	player := gameState.Players[gameState.ActivePlayer]
-	
+
 	// 根據Union Arena規則設置AP
 	isFirstPlayer := gameState.ActivePlayer == gameState.FirstPlayer
-	
+
 	var newMaxAP int
 	if isFirstPlayer {
-		// 先攻玩家：第1回合1張，第2回合2張，第3回合及以後3張
+		// 先攻玩家：第1回合1AP，第2回合2AP，第3回合及以後3AP
 		switch gameState.Turn {
 		case 1:
 			newMaxAP = 1
@@ -483,7 +484,7 @@ func (tm *turnManager) ProcessTurnStart(ctx context.Context, gameState *models.G
 			newMaxAP = 3
 		}
 	} else {
-		// 後攻玩家：第1回合2張，第2回合2張，第3回合及以後3張
+		// 後攻玩家：第1回合2AP，第2回合2AP，第3回合及以後3AP
 		switch gameState.Turn {
 		case 1, 2:
 			newMaxAP = 2
@@ -491,7 +492,7 @@ func (tm *turnManager) ProcessTurnStart(ctx context.Context, gameState *models.G
 			newMaxAP = 3
 		}
 	}
-	
+
 	player.MaxAP = newMaxAP
 	player.AP = player.MaxAP
 	player.ExtraDrawUsed = false // 重置額外抽卡標記
@@ -505,10 +506,18 @@ func (tm *turnManager) ProcessTurnStart(ctx context.Context, gameState *models.G
 		}
 	}
 
-	for i := range player.Characters {
-		player.Characters[i].Status.CanAttack = true
-		player.Characters[i].Status.IsExhausted = false
-		player.Characters[i].Status.CanAct = true
+	// 重置前線卡片狀態
+	for i := range player.Board.FrontLine {
+		player.Board.FrontLine[i].Status.CanAttack = true
+		player.Board.FrontLine[i].Status.IsActive = true
+		player.Board.FrontLine[i].Status.IsRested = false
+		player.Board.FrontLine[i].Status.CanAct = true
+	}
+	// 重置能源線卡片狀態
+	for i := range player.Board.EnergyLine {
+		player.Board.EnergyLine[i].Status.IsActive = true
+		player.Board.EnergyLine[i].Status.IsRested = false
+		player.Board.EnergyLine[i].Status.CanAct = true
 	}
 
 	logger.Debug("Turn started",
@@ -554,7 +563,7 @@ func (tm *turnManager) processStartPhase(ctx context.Context, gameState *models.
 	player := gameState.Players[gameState.ActivePlayer]
 
 	var energyProduce map[string]int
-	for _, field := range player.Fields {
+	for _, field := range player.Board.EnergyLine {
 		if field.Card.EnergyProduce != nil {
 			json.Unmarshal(field.Card.EnergyProduce, &energyProduce)
 			for color, amount := range energyProduce {
@@ -590,15 +599,16 @@ func (tm *turnManager) processEndPhase(ctx context.Context, gameState *models.Ga
 	// TODO: 實現回合效果清理
 
 	// 3. 減少所有角色的修正器持續時間，移除已過期的修正器
-	for i := range player.Characters {
-		for j := len(player.Characters[i].Modifiers) - 1; j >= 0; j-- {
-			modifier := &player.Characters[i].Modifiers[j]
+	// 處理前線卡片的修正器
+	for i := range player.Board.FrontLine {
+		for j := len(player.Board.FrontLine[i].Modifiers) - 1; j >= 0; j-- {
+			modifier := &player.Board.FrontLine[i].Modifiers[j]
 			if modifier.Duration > 0 {
 				modifier.Duration--
 				if modifier.Duration == 0 {
-					player.Characters[i].Modifiers = append(
-						player.Characters[i].Modifiers[:j],
-						player.Characters[i].Modifiers[j+1:]...)
+					player.Board.FrontLine[i].Modifiers = append(
+						player.Board.FrontLine[i].Modifiers[:j],
+						player.Board.FrontLine[i].Modifiers[j+1:]...)
 				}
 			}
 		}
@@ -611,7 +621,7 @@ func (tm *turnManager) processEndPhase(ctx context.Context, gameState *models.Ga
 		removedCards := player.Hand[8:]
 		player.Hand = player.Hand[:8]
 		player.RemovedCards = append(player.RemovedCards, removedCards...)
-		
+
 		logger.Debug("Hand limit exceeded, cards removed",
 			zap.String("player", gameState.ActivePlayer.String()),
 			zap.Int("cards_removed", cardsToRemove),
