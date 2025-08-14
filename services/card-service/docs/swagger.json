@@ -1,0 +1,1773 @@
+{
+    "schemes": [
+        "http",
+        "https"
+    ],
+    "swagger": "2.0",
+    "info": {
+        "description": "Card management microservice for UA Card Battle Game",
+        "title": "UA Card Service API",
+        "termsOfService": "http://swagger.io/terms/",
+        "contact": {
+            "name": "API Support",
+            "url": "http://www.swagger.io/support",
+            "email": "support@swagger.io"
+        },
+        "license": {
+            "name": "MIT",
+            "url": "https://opensource.org/licenses/MIT"
+        },
+        "version": "1.0"
+    },
+    "host": "localhost:8001",
+    "basePath": "/api/v1",
+    "paths": {
+        "/api/v1/cards": {
+            "get": {
+                "description": "Get a paginated list of cards with optional filters",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cards"
+                ],
+                "summary": "List cards",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Items per page",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Card type filter",
+                        "name": "card_type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Work code filter",
+                        "name": "work_code",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Rarity filter",
+                        "name": "rarity",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Characteristics filter (comma-separated)",
+                        "name": "characteristics",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Keywords filter (comma-separated)",
+                        "name": "keywords",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Minimum BP filter",
+                        "name": "min_bp",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Maximum BP filter",
+                        "name": "max_bp",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Minimum AP cost filter",
+                        "name": "min_ap_cost",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Maximum AP cost filter",
+                        "name": "max_ap_cost",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search by name",
+                        "name": "search_name",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.PaginatedResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/models.Card"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Create a new card with the provided details",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cards"
+                ],
+                "summary": "Create a new card",
+                "parameters": [
+                    {
+                        "description": "Card creation request",
+                        "name": "card",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/ua_services_card-service_internal_service.CreateCardRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.Card"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/cards/number/{number}": {
+            "get": {
+                "description": "Get a card by its card number (e.g., UA25-001) - returns first variant found",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cards"
+                ],
+                "summary": "Get card by number",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Card Number",
+                        "name": "number",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.Card"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/cards/rarities": {
+            "get": {
+                "description": "Get cards filtered by specific rarities",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cards"
+                ],
+                "summary": "Get cards by rarities",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Comma-separated list of rarities",
+                        "name": "rarities",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Items per page",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.PaginatedResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/models.Card"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/cards/rarity-tiers": {
+            "get": {
+                "description": "Get all available rarities with their tier values for sorting",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cards"
+                ],
+                "summary": "Get rarity tiers",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "additionalProperties": {
+                                                "type": "integer"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/cards/search": {
+            "get": {
+                "description": "Search cards by name",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cards"
+                ],
+                "summary": "Search cards",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Search query",
+                        "name": "q",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Maximum results",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/models.Card"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/cards/validate-deck": {
+            "post": {
+                "description": "Validate if a deck composition follows the game rules",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cards"
+                ],
+                "summary": "Validate deck composition",
+                "parameters": [
+                    {
+                        "description": "Deck cards",
+                        "name": "deck",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.CardInstance"
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/ua_services_card-service_internal_service.DeckValidationResult"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/cards/validate-play": {
+            "post": {
+                "description": "Validate if a card can be played in the current game state",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cards"
+                ],
+                "summary": "Validate card play",
+                "parameters": [
+                    {
+                        "description": "Card play validation request",
+                        "name": "validation",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/ua_services_card-service_internal_service.ValidateCardPlayRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/ua_services_card-service_internal_service.CardPlayValidation"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/cards/variant/{variant_id}": {
+            "get": {
+                "description": "Get a specific card variant by its variant ID (e.g., UA25BT-001-SR★★★)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cards"
+                ],
+                "summary": "Get card by variant ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Card Variant ID",
+                        "name": "variant_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.Card"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/cards/variants/{number}": {
+            "get": {
+                "description": "Get all variants (different rarities) of a card by its base card number",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cards"
+                ],
+                "summary": "Get card variants",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Base Card Number",
+                        "name": "number",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/models.Card"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/cards/work/{work_code}": {
+            "get": {
+                "description": "Get cards by work code",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cards"
+                ],
+                "summary": "Get cards by work",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Work Code",
+                        "name": "work_code",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Items per page",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.PaginatedResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/models.Card"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/cards/{id}": {
+            "get": {
+                "description": "Get a card by its UUID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cards"
+                ],
+                "summary": "Get card by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Card ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.Card"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Update an existing card",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cards"
+                ],
+                "summary": "Update card",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Card ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Card update request",
+                        "name": "card",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/ua_services_card-service_internal_service.UpdateCardRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.Card"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Delete a card by ID",
+                "tags": [
+                    "cards"
+                ],
+                "summary": "Delete card",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Card ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/cards/{id}/balance": {
+            "patch": {
+                "description": "Apply balance adjustments to a card",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cards"
+                ],
+                "summary": "Balance card",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Card ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Balance adjustment",
+                        "name": "adjustment",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/ua_services_card-service_internal_service.CardBalanceAdjustment"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/cards/{id}/rules": {
+            "get": {
+                "description": "Get the rules engine data for a specific card",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cards"
+                ],
+                "summary": "Get card rules engine",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Card ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/ua_services_card-service_internal_service.CardRulesEngine"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "models.Board": {
+            "type": "object",
+            "properties": {
+                "character_zones": {
+                    "type": "array",
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/definitions/models.CardInPlay"
+                        }
+                    }
+                },
+                "field_zone": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.CardInPlay"
+                    }
+                }
+            }
+        },
+        "models.Card": {
+            "type": "object",
+            "properties": {
+                "ap_cost": {
+                    "type": "integer"
+                },
+                "bp": {
+                    "type": "integer"
+                },
+                "card_number": {
+                    "description": "基礎卡號 (如: \"UA25BT-001\")",
+                    "type": "string"
+                },
+                "card_type": {
+                    "description": "-- CHARACTER, FIELD, EVENT, AP",
+                    "type": "string"
+                },
+                "card_variant_id": {
+                    "description": "完整變體ID (如: \"UA25BT-001-SR\", \"UA25BT-001-R\")",
+                    "type": "string"
+                },
+                "characteristics": {
+                    "description": "-- 特徵標籤",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "color": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "effect_text": {
+                    "type": "string"
+                },
+                "energy_cost": {
+                    "description": "-- 能源需求 {\"red\": 2, \"blue\": 1}",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "energy_produce": {
+                    "description": "-- 能源產生 {\"red\": 1, \"blue\": 0}",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
+                "image_url": {
+                    "description": "稀有度特定圖片 URL",
+                    "type": "string"
+                },
+                "keywords": {
+                    "description": "-- 關鍵字 [レイド, 狙い撃ち, ダメージ2]",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "rarity": {
+                    "type": "string"
+                },
+                "rarity_code": {
+                    "description": "稀有度代碼 (\"C\", \"U\", \"R\", \"SR\", \"SEC\")",
+                    "type": "string"
+                },
+                "trigger_effect": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "work_code": {
+                    "description": "-- 作品編號 (前3碼)",
+                    "type": "string"
+                }
+            }
+        },
+        "models.CardEffect": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "condition": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "description": {
+                    "type": "string"
+                },
+                "target": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "value": {}
+            }
+        },
+        "models.CardInPlay": {
+            "type": "object",
+            "properties": {
+                "card": {
+                    "$ref": "#/definitions/models.Card"
+                },
+                "modifiers": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.CardModifier"
+                    }
+                },
+                "owner": {
+                    "type": "string"
+                },
+                "position": {
+                    "$ref": "#/definitions/models.Position"
+                },
+                "status": {
+                    "$ref": "#/definitions/models.CardStatus"
+                }
+            }
+        },
+        "models.CardInstance": {
+            "type": "object",
+            "properties": {
+                "card_variant_id": {
+                    "description": "關聯到 Card.CardVariantID",
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "deck_id": {
+                    "description": "所屬套牌 (如果在套牌中)",
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "quantity": {
+                    "description": "數量",
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "description": "擁有者 (如果是收藏卡片)",
+                    "type": "string"
+                }
+            }
+        },
+        "models.CardModifier": {
+            "type": "object",
+            "properties": {
+                "applied_at": {
+                    "type": "integer"
+                },
+                "duration": {
+                    "type": "integer"
+                },
+                "source": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "value": {}
+            }
+        },
+        "models.CardStatus": {
+            "type": "object",
+            "properties": {
+                "can_act": {
+                    "type": "boolean"
+                },
+                "can_attack": {
+                    "type": "boolean"
+                },
+                "can_block": {
+                    "type": "boolean"
+                },
+                "is_exhausted": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "models.GameAction": {
+            "type": "object",
+            "properties": {
+                "action_data": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "action_type": {
+                    "type": "string"
+                },
+                "error_msg": {
+                    "type": "string"
+                },
+                "game_id": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_valid": {
+                    "type": "boolean"
+                },
+                "phase": {
+                    "$ref": "#/definitions/models.Phase"
+                },
+                "player_id": {
+                    "type": "string"
+                },
+                "timestamp": {
+                    "type": "string"
+                },
+                "turn": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.GameState": {
+            "type": "object",
+            "properties": {
+                "action_log": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.GameAction"
+                    }
+                },
+                "active_player": {
+                    "type": "string"
+                },
+                "board": {
+                    "$ref": "#/definitions/models.Board"
+                },
+                "first_player": {
+                    "description": "先攻玩家ID",
+                    "type": "string"
+                },
+                "life_area_setup": {
+                    "description": "記錄是否已設置生命區",
+                    "type": "boolean"
+                },
+                "mulligan_completed": {
+                    "description": "記錄每個玩家是否完成調度",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "boolean"
+                    }
+                },
+                "phase": {
+                    "$ref": "#/definitions/models.Phase"
+                },
+                "players": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/models.Player"
+                    }
+                },
+                "turn": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.Phase": {
+            "type": "integer",
+            "enum": [
+                0,
+                1,
+                2,
+                3,
+                4
+            ],
+            "x-enum-varnames": [
+                "StartPhase",
+                "MovePhase",
+                "MainPhase",
+                "AttackPhase",
+                "EndPhase"
+            ]
+        },
+        "models.Player": {
+            "type": "object",
+            "properties": {
+                "ap": {
+                    "type": "integer"
+                },
+                "characters": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.CardInPlay"
+                    }
+                },
+                "deck": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Card"
+                    }
+                },
+                "energy": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
+                },
+                "events": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.CardInPlay"
+                    }
+                },
+                "extra_draw_used": {
+                    "description": "本回合是否已使用額外抽卡",
+                    "type": "boolean"
+                },
+                "fields": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.CardInPlay"
+                    }
+                },
+                "graveyard": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Card"
+                    }
+                },
+                "hand": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Card"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
+                "life_area": {
+                    "description": "生命區：7張背面朝上的卡片，遊戲開始時從卡組頂部設置",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Card"
+                    }
+                },
+                "max_ap": {
+                    "type": "integer"
+                },
+                "removed_cards": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Card"
+                    }
+                }
+            }
+        },
+        "models.Position": {
+            "type": "object",
+            "properties": {
+                "slot": {
+                    "type": "integer"
+                },
+                "zone": {
+                    "type": "integer"
+                }
+            }
+        },
+        "ua_services_card-service_internal_service.CardBalanceAdjustment": {
+            "type": "object",
+            "properties": {
+                "ap_cost": {
+                    "type": "integer"
+                },
+                "bp": {
+                    "type": "integer"
+                },
+                "effect_values": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "energy_cost": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
+                },
+                "reason": {
+                    "type": "string"
+                }
+            }
+        },
+        "ua_services_card-service_internal_service.CardPlayValidation": {
+            "type": "object",
+            "properties": {
+                "effects": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.CardEffect"
+                    }
+                },
+                "errors": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "is_valid": {
+                    "type": "boolean"
+                },
+                "required_ap": {
+                    "type": "integer"
+                },
+                "required_energy": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
+                },
+                "valid_targets": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "warnings": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "ua_services_card-service_internal_service.CardRulesEngine": {
+            "type": "object",
+            "properties": {
+                "card": {
+                    "$ref": "#/definitions/models.Card"
+                },
+                "effects": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.CardEffect"
+                    }
+                },
+                "keywords": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/ua_services_card-service_internal_service.KeywordRule"
+                    }
+                },
+                "restrictions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/ua_services_card-service_internal_service.PlayRestriction"
+                    }
+                }
+            }
+        },
+        "ua_services_card-service_internal_service.CreateCardRequest": {
+            "type": "object",
+            "required": [
+                "card_number",
+                "card_type",
+                "color",
+                "name",
+                "rarity",
+                "work_code"
+            ],
+            "properties": {
+                "ap_cost": {
+                    "type": "integer"
+                },
+                "bp": {
+                    "type": "integer"
+                },
+                "card_number": {
+                    "type": "string"
+                },
+                "card_type": {
+                    "type": "string"
+                },
+                "characteristics": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "color": {
+                    "type": "string"
+                },
+                "effect_text": {
+                    "type": "string"
+                },
+                "energy_cost": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
+                },
+                "energy_produce": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
+                },
+                "image_url": {
+                    "type": "string"
+                },
+                "keywords": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "rarity": {
+                    "type": "string"
+                },
+                "trigger_effect": {
+                    "type": "string"
+                },
+                "work_code": {
+                    "type": "string"
+                }
+            }
+        },
+        "ua_services_card-service_internal_service.DeckValidationResult": {
+            "type": "object",
+            "properties": {
+                "card_count": {
+                    "type": "integer"
+                },
+                "errors": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "is_valid": {
+                    "type": "boolean"
+                },
+                "type_breakdown": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
+                },
+                "warnings": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "work_breakdown": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
+        "ua_services_card-service_internal_service.KeywordRule": {
+            "type": "object",
+            "properties": {
+                "conditions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/ua_services_card-service_internal_service.RuleCondition"
+                    }
+                },
+                "description": {
+                    "type": "string"
+                },
+                "keyword": {
+                    "type": "string"
+                },
+                "parameters": {
+                    "type": "object",
+                    "additionalProperties": true
+                }
+            }
+        },
+        "ua_services_card-service_internal_service.PlayRestriction": {
+            "type": "object",
+            "properties": {
+                "condition": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "message": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "ua_services_card-service_internal_service.RuleCondition": {
+            "type": "object",
+            "properties": {
+                "field": {
+                    "type": "string"
+                },
+                "operator": {
+                    "type": "string"
+                },
+                "value": {}
+            }
+        },
+        "ua_services_card-service_internal_service.UpdateCardRequest": {
+            "type": "object",
+            "properties": {
+                "ap_cost": {
+                    "type": "integer"
+                },
+                "bp": {
+                    "type": "integer"
+                },
+                "card_type": {
+                    "type": "string"
+                },
+                "characteristics": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "color": {
+                    "type": "string"
+                },
+                "effect_text": {
+                    "type": "string"
+                },
+                "energy_cost": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
+                },
+                "energy_produce": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
+                },
+                "image_url": {
+                    "type": "string"
+                },
+                "keywords": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "rarity": {
+                    "type": "string"
+                },
+                "trigger_effect": {
+                    "type": "string"
+                },
+                "work_code": {
+                    "type": "string"
+                }
+            }
+        },
+        "ua_services_card-service_internal_service.ValidateCardPlayRequest": {
+            "type": "object",
+            "properties": {
+                "additional": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "card_id": {
+                    "type": "string"
+                },
+                "game_state": {
+                    "$ref": "#/definitions/models.GameState"
+                },
+                "player_id": {
+                    "type": "string"
+                },
+                "position": {
+                    "$ref": "#/definitions/models.Position"
+                },
+                "target_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "utils.PaginatedResponse": {
+            "type": "object",
+            "properties": {
+                "data": {},
+                "error": {
+                    "type": "string"
+                },
+                "pagination": {
+                    "$ref": "#/definitions/utils.Pagination"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "utils.Pagination": {
+            "type": "object",
+            "properties": {
+                "limit": {
+                    "type": "integer"
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "total_pages": {
+                    "type": "integer"
+                }
+            }
+        },
+        "utils.Response": {
+            "type": "object",
+            "properties": {
+                "data": {},
+                "error": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "description": "Type \"Bearer\" followed by a space and JWT token.",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        }
+    }
+}

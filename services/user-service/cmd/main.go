@@ -13,6 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/swaggo/files"
 	"github.com/swaggo/gin-swagger"
+	_ "ua/services/user-service/docs" // Swagger docs
 	"ua/services/user-service/internal/handler"
 	"ua/services/user-service/internal/repository"
 	"ua/services/user-service/internal/service"

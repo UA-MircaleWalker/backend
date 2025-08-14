@@ -99,11 +99,32 @@ func NewGameEngine() GameEngine {
 // InitializeGame 初始化新遊戲
 // 根據Union Arena規則：洗牌、抽初始手牌、調度、設置生命區
 func (e *gameEngine) InitializeGame(ctx context.Context, req *InitGameRequest) (*models.GameState, error) {
+	// 驗證卡組大小：正式規則要求50張卡片
 	if len(req.Player1.Deck) != 50 {
-		return nil, fmt.Errorf("player1 deck size invalid: %d", len(req.Player1.Deck))
+		return nil, fmt.Errorf("player1 deck size invalid: %d cards (required: 50)", len(req.Player1.Deck))
 	}
 	if len(req.Player2.Deck) != 50 {
-		return nil, fmt.Errorf("player2 deck size invalid: %d", len(req.Player2.Deck))
+		return nil, fmt.Errorf("player2 deck size invalid: %d cards (required: 50)", len(req.Player2.Deck))
+	}
+
+	// 驗證卡組組成：每個卡組必須包含正好3張AP卡
+	p1APCount := 0
+	p2APCount := 0
+	for _, card := range req.Player1.Deck {
+		if card.CardType == "AP" {
+			p1APCount++
+		}
+	}
+	for _, card := range req.Player2.Deck {
+		if card.CardType == "AP" {
+			p2APCount++
+		}
+	}
+	if p1APCount != 3 {
+		return nil, fmt.Errorf("player1 deck must contain exactly 3 AP cards (found: %d)", p1APCount)
+	}
+	if p2APCount != 3 {
+		return nil, fmt.Errorf("player2 deck must contain exactly 3 AP cards (found: %d)", p2APCount)
 	}
 
 	player1 := &models.Player{

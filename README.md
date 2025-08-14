@@ -360,22 +360,35 @@ PROMETHEUS_URL=http://prometheus:9090
 - Add Swagger documentation for new endpoints
 - Include integration tests for cross-service features
 
-## 📄 API Documentation
+## 📄 Documentation
 
-Comprehensive API documentation is available at:
+### 📁 Project Structure
+See [PROJECT_STRUCTURE.md](./PROJECT_STRUCTURE.md) for complete project organization and file locations.
 
-- **Full API Docs**: [API_Documentation.md](./API_Documentation.md)
+### 📚 API Documentation
+- **Full API Docs**: [docs/api/API_Documentation.md](./docs/api/API_Documentation.md)
 - **Interactive Swagger**:
-  - Cards: http://localhost/swagger/cards/index.html
-  - Users: http://localhost/swagger/users/index.html
-  - Matchmaking: http://localhost/swagger/matchmaking/index.html
-  - Games: http://localhost/swagger/games/index.html
-  - Results: http://localhost/swagger/results/index.html
+  - Cards: http://localhost:8001/swagger/index.html
+  - Users: http://localhost:8002/swagger/index.html
+  - Matchmaking: http://localhost:8003/swagger/index.html
+  - Games: http://localhost:8004/swagger/index.html
+  - Results: http://localhost:8005/swagger/index.html
 
-## 📊 Database Schema
+### 🧪 Testing Documentation
+- **Quick Test Guide**: [docs/testing/BOB_KAGE_GAME_TEST.md](./docs/testing/BOB_KAGE_GAME_TEST.md)
+- **Complete Test Flow**: [docs/testing/COMPLETE_GAME_TEST.md](./docs/testing/COMPLETE_GAME_TEST.md)
+- **API Testing Guide**: [docs/testing/API_TESTING_GUIDE.md](./docs/testing/API_TESTING_GUIDE.md)
 
+### 🎮 Game Rules
+- **Union Arena Rules**: [docs/rules.md](./docs/rules.md)
+
+### 📊 Database Schema
 - **PostgreSQL Schema**: [database/init.sql](./database/init.sql)
 - **Redis Schema**: [database/redis_schema.md](./database/redis_schema.md)
+
+### 🧪 Test Data & Scripts
+- **Test Data**: Located in [test_data/](./test_data/) directory
+- **Test Scripts**: Located in [scripts/testing/](./scripts/testing/) directory
 
 ## 🐳 Container Images
 

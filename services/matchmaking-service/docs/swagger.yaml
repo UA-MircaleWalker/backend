@@ -1,0 +1,360 @@
+basePath: /api/v1
+definitions:
+  internal_handler.AcceptMatchRequest:
+    properties:
+      match_id:
+        type: string
+    required:
+    - match_id
+    type: object
+  internal_handler.DeclineMatchRequest:
+    properties:
+      match_id:
+        type: string
+    required:
+    - match_id
+    type: object
+  ua_services_matchmaking-service_internal_repository.Match:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      mode:
+        type: string
+      player1_id:
+        type: string
+      player2_id:
+        type: string
+      status:
+        type: string
+    type: object
+  ua_services_matchmaking-service_internal_service.JoinQueueRequest:
+    properties:
+      mode:
+        enum:
+        - RANKED
+        - CASUAL
+        type: string
+      rank_range:
+        type: integer
+      user_id:
+        type: string
+    required:
+    - mode
+    - user_id
+    type: object
+  ua_services_matchmaking-service_internal_service.MatchmakingResults:
+    properties:
+      matches:
+        items:
+          $ref: '#/definitions/ua_services_matchmaking-service_internal_repository.Match'
+        type: array
+      matches_created:
+        type: integer
+      players_matched:
+        type: integer
+      removed_expired:
+        type: integer
+    type: object
+  ua_services_matchmaking-service_internal_service.QueueJoinResponse:
+    properties:
+      estimated_wait_seconds:
+        type: integer
+      joined_at:
+        type: string
+      message:
+        type: string
+      position:
+        type: integer
+      success:
+        type: boolean
+    type: object
+  utils.Response:
+    properties:
+      data: {}
+      error:
+        type: string
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
+host: localhost:8003
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: Matchmaking microservice for UA Card Battle Game
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  termsOfService: http://swagger.io/terms/
+  title: UA Matchmaking Service API
+  version: "1.0"
+paths:
+  /api/v1/matchmaking/accept:
+    post:
+      consumes:
+      - application/json
+      description: Accept a found match
+      parameters:
+      - description: Accept match request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.AcceptMatchRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: Accept match
+      tags:
+      - matchmaking
+  /api/v1/matchmaking/decline:
+    post:
+      consumes:
+      - application/json
+      description: Decline a found match
+      parameters:
+      - description: Decline match request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.DeclineMatchRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: Decline match
+      tags:
+      - matchmaking
+  /api/v1/matchmaking/history/{userId}:
+    get:
+      description: Get matchmaking history for a user
+      parameters:
+      - description: User ID
+        in: path
+        name: userId
+        required: true
+        type: string
+      - default: 10
+        description: Maximum number of matches to return
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: Get match history
+      tags:
+      - matchmaking
+  /api/v1/matchmaking/process:
+    post:
+      description: Manually trigger matchmaking process (admin only)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/ua_services_matchmaking-service_internal_service.MatchmakingResults'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: Process matchmaking
+      tags:
+      - matchmaking
+  /api/v1/matchmaking/queue:
+    post:
+      consumes:
+      - application/json
+      description: Join the matchmaking queue for a specific game mode
+      parameters:
+      - description: Queue join request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/ua_services_matchmaking-service_internal_service.JoinQueueRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/ua_services_matchmaking-service_internal_service.QueueJoinResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: Join matchmaking queue
+      tags:
+      - matchmaking
+  /api/v1/matchmaking/queue/{userId}:
+    delete:
+      description: Leave the current matchmaking queue
+      parameters:
+      - description: User ID
+        in: path
+        name: userId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: Leave matchmaking queue
+      tags:
+      - matchmaking
+  /api/v1/matchmaking/stats:
+    get:
+      description: Get current queue statistics
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      summary: Get queue statistics
+      tags:
+      - matchmaking
+  /api/v1/matchmaking/status/{userId}:
+    get:
+      description: Get current queue status for a user
+      parameters:
+      - description: User ID
+        in: path
+        name: userId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: Get queue status
+      tags:
+      - matchmaking
+schemes:
+- http
+- https
+securityDefinitions:
+  BearerAuth:
+    description: Type "Bearer" followed by a space and JWT token.
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

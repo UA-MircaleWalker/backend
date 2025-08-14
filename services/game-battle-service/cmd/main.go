@@ -13,6 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/swaggo/files"
 	"github.com/swaggo/gin-swagger"
+	_ "ua/services/game-battle-service/docs" // Swagger docs
 	"ua/services/game-battle-service/internal/engine"
 	"ua/services/game-battle-service/internal/handler"
 	"ua/services/game-battle-service/internal/repository"
@@ -122,10 +123,13 @@ func setupRouter(cfg *config.Config, gameHandler *handler.GameHandler) *gin.Engi
 
 	api := r.Group("/api/v1")
 	{
+		// Public endpoints (no auth required)
+		api.POST("/games", gameHandler.CreateGame)
+		
+		// Protected endpoints (auth required)
 		games := api.Group("/games")
+		games.Use(middleware.AuthMiddleware(cfg.JWTSecret))
 		{
-			games.Use(middleware.AuthMiddleware(cfg.JWTSecret))
-			games.POST("", gameHandler.CreateGame)
 			games.GET("/active", gameHandler.GetActiveGames)
 			games.GET("/:gameId", gameHandler.GetGame)
 			games.POST("/:gameId/join", gameHandler.JoinGame)

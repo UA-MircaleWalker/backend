@@ -8,60 +8,65 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	"ua/services/card-service/internal/repository"
 	"ua/shared/models"
+
+	"github.com/google/uuid"
 )
 
 type CardService interface {
 	CreateCard(ctx context.Context, req *CreateCardRequest) (*models.Card, error)
 	GetCard(ctx context.Context, id uuid.UUID) (*models.Card, error)
 	GetCardByNumber(ctx context.Context, cardNumber string) (*models.Card, error)
+	GetCardByVariantID(ctx context.Context, cardVariantID string) (*models.Card, error)
+	GetCardVariants(ctx context.Context, cardNumber string) ([]*models.Card, error)
 	ListCards(ctx context.Context, req *ListCardsRequest) ([]*models.Card, int64, error)
 	UpdateCard(ctx context.Context, id uuid.UUID, req *UpdateCardRequest) (*models.Card, error)
 	DeleteCard(ctx context.Context, id uuid.UUID) error
 	SearchCards(ctx context.Context, query string, limit int) ([]*models.Card, error)
 	GetCardsByWork(ctx context.Context, workCode string, page, limit int) ([]*models.Card, int64, error)
-	ValidateDeckComposition(ctx context.Context, deckCards []models.DeckCard) (*DeckValidationResult, error)
+	ValidateDeckComposition(ctx context.Context, deckCards []models.CardInstance) (*DeckValidationResult, error)
 	GetCardRulesEngine(ctx context.Context, cardID uuid.UUID) (*CardRulesEngine, error)
 	ValidateCardPlay(ctx context.Context, req *ValidateCardPlayRequest) (*CardPlayValidation, error)
 	GetCardsByKeywords(ctx context.Context, keywords []string, page, limit int) ([]*models.Card, int64, error)
 	BalanceCard(ctx context.Context, cardID uuid.UUID, adjustments *CardBalanceAdjustment) error
+	GetCardsByRarity(ctx context.Context, rarities []string, page, limit int) ([]*models.Card, int64, error)
+	GetRarityTiers(ctx context.Context) (map[string]int, error)
 }
 
 type CreateCardRequest struct {
-	CardNumber      string              `json:"card_number" validate:"required"`
-	Name            string              `json:"name" validate:"required"`
-	CardType        string              `json:"card_type" validate:"required"`
-	Color           string              `json:"color" validate:"required"`
-	WorkCode        string              `json:"work_code" validate:"required"`
-	BP              *int                `json:"bp"`
-	APCost          int                 `json:"ap_cost"`
-	EnergyCost      map[string]int      `json:"energy_cost"`
-	EnergyProduce   map[string]int      `json:"energy_produce"`
-	Rarity          string              `json:"rarity" validate:"required"`
-	Characteristics []string            `json:"characteristics"`
-	EffectText      string              `json:"effect_text"`
-	TriggerEffect   string              `json:"trigger_effect"`
-	Keywords        []string            `json:"keywords"`
-	ImageURL        string              `json:"image_url"`
+	CardNumber      string         `json:"card_number" validate:"required"`
+	Name            string         `json:"name" validate:"required"`
+	CardType        string         `json:"card_type" validate:"required"`
+	Color           string         `json:"color" validate:"required"`
+	WorkCode        string         `json:"work_code" validate:"required"`
+	BP              *int           `json:"bp"`
+	APCost          int            `json:"ap_cost"`
+	EnergyCost      map[string]int `json:"energy_cost"`
+	EnergyProduce   map[string]int `json:"energy_produce"`
+	Rarity          string         `json:"rarity" validate:"required"`
+	Characteristics []string       `json:"characteristics"`
+	EffectText      string         `json:"effect_text"`
+	TriggerEffect   string         `json:"trigger_effect"`
+	Keywords        []string       `json:"keywords"`
+	ImageURL        string         `json:"image_url"`
 }
 
 type UpdateCardRequest struct {
-	Name            *string              `json:"name"`
-	CardType        *string              `json:"card_type"`
-	Color           *string              `json:"color"`
-	WorkCode        *string              `json:"work_code"`
-	BP              *int                 `json:"bp"`
-	APCost          *int                 `json:"ap_cost"`
-	EnergyCost      *map[string]int      `json:"energy_cost"`
-	EnergyProduce   *map[string]int      `json:"energy_produce"`
-	Rarity          *string              `json:"rarity"`
-	Characteristics *[]string            `json:"characteristics"`
-	EffectText      *string              `json:"effect_text"`
-	TriggerEffect   *string              `json:"trigger_effect"`
-	Keywords        *[]string            `json:"keywords"`
-	ImageURL        *string              `json:"image_url"`
+	Name            *string         `json:"name"`
+	CardType        *string         `json:"card_type"`
+	Color           *string         `json:"color"`
+	WorkCode        *string         `json:"work_code"`
+	BP              *int            `json:"bp"`
+	APCost          *int            `json:"ap_cost"`
+	EnergyCost      *map[string]int `json:"energy_cost"`
+	EnergyProduce   *map[string]int `json:"energy_produce"`
+	Rarity          *string         `json:"rarity"`
+	Characteristics *[]string       `json:"characteristics"`
+	EffectText      *string         `json:"effect_text"`
+	TriggerEffect   *string         `json:"trigger_effect"`
+	Keywords        *[]string       `json:"keywords"`
+	ImageURL        *string         `json:"image_url"`
 }
 
 type ListCardsRequest struct {
@@ -174,9 +179,12 @@ func (s *cardService) CreateCard(ctx context.Context, req *CreateCardRequest) (*
 		return nil, fmt.Errorf("failed to marshal energy produce: %w", err)
 	}
 
+	cardVariantID := models.BuildCardVariantID(req.CardNumber, req.Rarity)
+
 	card := &models.Card{
 		ID:              uuid.New(),
 		CardNumber:      req.CardNumber,
+		CardVariantID:   cardVariantID,
 		Name:            req.Name,
 		CardType:        req.CardType,
 		Color:           req.Color,
@@ -207,7 +215,17 @@ func (s *cardService) GetCard(ctx context.Context, id uuid.UUID) (*models.Card, 
 }
 
 func (s *cardService) GetCardByNumber(ctx context.Context, cardNumber string) (*models.Card, error) {
+	// This now returns the first variant found (for backward compatibility)
+	// Consider using GetCardVariants() for getting all rarities of a card
 	return s.cardRepo.GetByCardNumber(ctx, cardNumber)
+}
+
+func (s *cardService) GetCardByVariantID(ctx context.Context, cardVariantID string) (*models.Card, error) {
+	return s.cardRepo.GetByCardVariantID(ctx, cardVariantID)
+}
+
+func (s *cardService) GetCardVariants(ctx context.Context, cardNumber string) ([]*models.Card, error) {
+	return s.cardRepo.GetCardVariants(ctx, cardNumber)
 }
 
 func (s *cardService) ListCards(ctx context.Context, req *ListCardsRequest) ([]*models.Card, int64, error) {
@@ -338,7 +356,7 @@ func (s *cardService) GetCardsByWork(ctx context.Context, workCode string, page,
 	return s.cardRepo.GetByWorkCode(ctx, workCode, page, limit)
 }
 
-func (s *cardService) ValidateDeckComposition(ctx context.Context, deckCards []models.DeckCard) (*DeckValidationResult, error) {
+func (s *cardService) ValidateDeckComposition(ctx context.Context, deckCards []models.CardInstance) (*DeckValidationResult, error) {
 	result := &DeckValidationResult{
 		IsValid:       true,
 		Errors:        []string{},
@@ -348,13 +366,18 @@ func (s *cardService) ValidateDeckComposition(ctx context.Context, deckCards []m
 	}
 
 	totalCards := 0
-	cardCounts := make(map[uuid.UUID]int)
-	var cardIDs []uuid.UUID
+	cardVariantCounts := make(map[string]int) // Count per CardVariantID
+	baseCardCounts := make(map[string]int)    // Count per base CardNumber
+	var cardVariantIDs []string
 
 	for _, deckCard := range deckCards {
 		totalCards += deckCard.Quantity
-		cardCounts[deckCard.CardID] += deckCard.Quantity
-		cardIDs = append(cardIDs, deckCard.CardID)
+		cardVariantCounts[deckCard.CardVariantID] += deckCard.Quantity
+		cardVariantIDs = append(cardVariantIDs, deckCard.CardVariantID)
+
+		// Extract base card number for validation
+		cardNumber, _ := models.ParseCardVariantID(deckCard.CardVariantID)
+		baseCardCounts[cardNumber] += deckCard.Quantity
 	}
 
 	result.CardCount = totalCards
@@ -526,21 +549,45 @@ func (s *cardService) validateCardType(cardType string) error {
 }
 
 func (s *cardService) validateRarity(rarity string) error {
-	validRarities := []string{
-		models.RarityCommon,
-		models.RarityUncommon,
-		models.RarityRare,
-		models.RaritySuperRare,
-		models.RaritySpecial,
+	if models.IsValidRarity(rarity) {
+		return nil
+	}
+	return fmt.Errorf("invalid rarity: %s", rarity)
+}
+
+func (s *cardService) GetCardsByRarity(ctx context.Context, rarities []string, page, limit int) ([]*models.Card, int64, error) {
+	if page <= 0 {
+		page = 1
+	}
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > 100 {
+		limit = 100
 	}
 
-	for _, validRarity := range validRarities {
-		if rarity == validRarity {
-			return nil
+	// Validate all rarities
+	for _, rarity := range rarities {
+		if err := s.validateRarity(rarity); err != nil {
+			return nil, 0, fmt.Errorf("invalid rarity in list: %w", err)
 		}
 	}
 
-	return fmt.Errorf("invalid rarity: %s", rarity)
+	filters := repository.CardFilters{
+		Rarities: rarities, // Note: Need to update CardFilters struct
+	}
+
+	return s.cardRepo.List(ctx, filters, page, limit)
+}
+
+func (s *cardService) GetRarityTiers(ctx context.Context) (map[string]int, error) {
+	rarityTiers := make(map[string]int)
+
+	for _, rarity := range models.AllRarities {
+		rarityTiers[rarity] = models.GetRarityTier(rarity)
+	}
+
+	return rarityTiers, nil
 }
 
 func (s *cardService) parseKeywords(keywords []string) []KeywordRule {

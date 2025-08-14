@@ -16,19 +16,23 @@ type CardRepository interface {
 	Create(ctx context.Context, card *models.Card) error
 	GetByID(ctx context.Context, id uuid.UUID) (*models.Card, error)
 	GetByCardNumber(ctx context.Context, cardNumber string) (*models.Card, error)
+	GetByCardVariantID(ctx context.Context, cardVariantID string) (*models.Card, error)
+	GetCardVariants(ctx context.Context, cardNumber string) ([]*models.Card, error)
 	List(ctx context.Context, filters CardFilters, page, limit int) ([]*models.Card, int64, error)
 	Update(ctx context.Context, card *models.Card) error
 	Delete(ctx context.Context, id uuid.UUID) error
 	SearchByName(ctx context.Context, name string, limit int) ([]*models.Card, error)
 	GetByWorkCode(ctx context.Context, workCode string, page, limit int) ([]*models.Card, int64, error)
-	ValidateDeck(ctx context.Context, deckCards []models.DeckCard) error
+	ValidateDeck(ctx context.Context, deckCards []models.CardInstance) error
 	GetCardEffects(ctx context.Context, cardID uuid.UUID) ([]models.CardEffect, error)
 }
 
 type CardFilters struct {
 	CardType        string
 	WorkCode        string
+	Color           string
 	Rarity          string
+	Rarities        []string // For multiple rarity filtering
 	Characteristics []string
 	Keywords        []string
 	MinBP           *int
@@ -48,14 +52,14 @@ func NewCardRepository(db *database.DB) CardRepository {
 
 func (r *cardRepository) Create(ctx context.Context, card *models.Card) error {
 	query := `
-		INSERT INTO cards (id, card_number, name, card_type, work_code, bp, ap_cost, 
-						  energy_cost, energy_produce, rarity, characteristics, effect_text, 
-						  trigger_effect, keywords, image_url, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`
+		INSERT INTO cards (id, card_number, card_variant_id, name, card_type, color, work_code, 
+						  bp, ap_cost, energy_cost, energy_produce, rarity, characteristics, 
+						  effect_text, trigger_effect, keywords, image_url, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)`
 
 	_, err := r.db.ExecContext(ctx, query,
-		card.ID, card.CardNumber, card.Name, card.CardType, card.WorkCode,
-		card.BP, card.APCost, card.EnergyCost, card.EnergyProduce,
+		card.ID, card.CardNumber, card.CardVariantID, card.Name, card.CardType, card.Color, 
+		card.WorkCode, card.BP, card.APCost, card.EnergyCost, card.EnergyProduce,
 		card.Rarity, pq.Array(card.Characteristics), card.EffectText,
 		card.TriggerEffect, pq.Array(card.Keywords), card.ImageURL,
 		card.CreatedAt, card.UpdatedAt)
@@ -65,15 +69,15 @@ func (r *cardRepository) Create(ctx context.Context, card *models.Card) error {
 
 func (r *cardRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.Card, error) {
 	query := `
-		SELECT id, card_number, name, card_type, work_code, bp, ap_cost,
+		SELECT id, card_number, card_variant_id, name, card_type, color, work_code, bp, ap_cost,
 			   energy_cost, energy_produce, rarity, characteristics, effect_text,
 			   trigger_effect, keywords, image_url, created_at, updated_at
 		FROM cards WHERE id = $1`
 
 	card := &models.Card{}
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
-		&card.ID, &card.CardNumber, &card.Name, &card.CardType, &card.WorkCode,
-		&card.BP, &card.APCost, &card.EnergyCost, &card.EnergyProduce,
+		&card.ID, &card.CardNumber, &card.CardVariantID, &card.Name, &card.CardType, &card.Color,
+		&card.WorkCode, &card.BP, &card.APCost, &card.EnergyCost, &card.EnergyProduce,
 		&card.Rarity, pq.Array(&card.Characteristics), &card.EffectText,
 		&card.TriggerEffect, pq.Array(&card.Keywords), &card.ImageURL,
 		&card.CreatedAt, &card.UpdatedAt)
@@ -89,16 +93,17 @@ func (r *cardRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.Car
 }
 
 func (r *cardRepository) GetByCardNumber(ctx context.Context, cardNumber string) (*models.Card, error) {
+	// Returns first variant found for backward compatibility
 	query := `
-		SELECT id, card_number, name, card_type, work_code, bp, ap_cost,
+		SELECT id, card_number, card_variant_id, name, card_type, color, work_code, bp, ap_cost,
 			   energy_cost, energy_produce, rarity, characteristics, effect_text,
 			   trigger_effect, keywords, image_url, created_at, updated_at
-		FROM cards WHERE card_number = $1`
+		FROM cards WHERE card_number = $1 LIMIT 1`
 
 	card := &models.Card{}
 	err := r.db.QueryRowContext(ctx, query, cardNumber).Scan(
-		&card.ID, &card.CardNumber, &card.Name, &card.CardType, &card.WorkCode,
-		&card.BP, &card.APCost, &card.EnergyCost, &card.EnergyProduce,
+		&card.ID, &card.CardNumber, &card.CardVariantID, &card.Name, &card.CardType, &card.Color,
+		&card.WorkCode, &card.BP, &card.APCost, &card.EnergyCost, &card.EnergyProduce,
 		&card.Rarity, pq.Array(&card.Characteristics), &card.EffectText,
 		&card.TriggerEffect, pq.Array(&card.Keywords), &card.ImageURL,
 		&card.CreatedAt, &card.UpdatedAt)
@@ -111,6 +116,76 @@ func (r *cardRepository) GetByCardNumber(ctx context.Context, cardNumber string)
 	}
 
 	return card, nil
+}
+
+func (r *cardRepository) GetByCardVariantID(ctx context.Context, cardVariantID string) (*models.Card, error) {
+	query := `
+		SELECT id, card_number, card_variant_id, name, card_type, color, work_code, bp, ap_cost,
+			   energy_cost, energy_produce, rarity, characteristics, effect_text,
+			   trigger_effect, keywords, image_url, created_at, updated_at
+		FROM cards WHERE card_variant_id = $1`
+
+	card := &models.Card{}
+	err := r.db.QueryRowContext(ctx, query, cardVariantID).Scan(
+		&card.ID, &card.CardNumber, &card.CardVariantID, &card.Name, &card.CardType, &card.Color,
+		&card.WorkCode, &card.BP, &card.APCost, &card.EnergyCost, &card.EnergyProduce,
+		&card.Rarity, pq.Array(&card.Characteristics), &card.EffectText,
+		&card.TriggerEffect, pq.Array(&card.Keywords), &card.ImageURL,
+		&card.CreatedAt, &card.UpdatedAt)
+
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("card variant not found")
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return card, nil
+}
+
+func (r *cardRepository) GetCardVariants(ctx context.Context, cardNumber string) ([]*models.Card, error) {
+	query := `
+		SELECT id, card_number, card_variant_id, name, card_type, color, work_code, bp, ap_cost,
+			   energy_cost, energy_produce, rarity, characteristics, effect_text,
+			   trigger_effect, keywords, image_url, created_at, updated_at
+		FROM cards WHERE card_number = $1
+		ORDER BY CASE rarity 
+			WHEN 'OBC' THEN 10
+			WHEN 'SP' THEN 9 WHEN 'PR' THEN 9
+			WHEN 'UR' THEN 8
+			WHEN 'SR_3' THEN 7 WHEN 'SR_2' THEN 6 WHEN 'SR_1' THEN 5 WHEN 'SR' THEN 4
+			WHEN 'R_2' THEN 3 WHEN 'R_1' THEN 2 WHEN 'R' THEN 1
+			WHEN 'U_3' THEN 0 WHEN 'U_2' THEN -1 WHEN 'U_1' THEN -2 WHEN 'U' THEN -3
+			WHEN 'C_2' THEN -4 WHEN 'C_1' THEN -5 WHEN 'C' THEN -6
+			ELSE -10
+		END DESC`
+
+	rows, err := r.db.QueryContext(ctx, query, cardNumber)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var cards []*models.Card
+	for rows.Next() {
+		card := &models.Card{}
+		err := rows.Scan(
+			&card.ID, &card.CardNumber, &card.CardVariantID, &card.Name, &card.CardType, &card.Color,
+			&card.WorkCode, &card.BP, &card.APCost, &card.EnergyCost, &card.EnergyProduce,
+			&card.Rarity, pq.Array(&card.Characteristics), &card.EffectText,
+			&card.TriggerEffect, pq.Array(&card.Keywords), &card.ImageURL,
+			&card.CreatedAt, &card.UpdatedAt)
+		if err != nil {
+			return nil, err
+		}
+		cards = append(cards, card)
+	}
+
+	if len(cards) == 0 {
+		return nil, fmt.Errorf("no card variants found for card number: %s", cardNumber)
+	}
+
+	return cards, nil
 }
 
 func (r *cardRepository) List(ctx context.Context, filters CardFilters, page, limit int) ([]*models.Card, int64, error) {
@@ -130,10 +205,22 @@ func (r *cardRepository) List(ctx context.Context, filters CardFilters, page, li
 		args = append(args, filters.WorkCode)
 	}
 
+	if filters.Color != "" {
+		argCount++
+		whereClauses = append(whereClauses, fmt.Sprintf("color = $%d", argCount))
+		args = append(args, filters.Color)
+	}
+
 	if filters.Rarity != "" {
 		argCount++
 		whereClauses = append(whereClauses, fmt.Sprintf("rarity = $%d", argCount))
 		args = append(args, filters.Rarity)
+	}
+
+	if len(filters.Rarities) > 0 {
+		argCount++
+		whereClauses = append(whereClauses, fmt.Sprintf("rarity = ANY($%d)", argCount))
+		args = append(args, pq.Array(filters.Rarities))
 	}
 
 	if len(filters.Characteristics) > 0 {
@@ -192,11 +279,11 @@ func (r *cardRepository) List(ctx context.Context, filters CardFilters, page, li
 
 	offset := (page - 1) * limit
 	query := fmt.Sprintf(`
-		SELECT id, card_number, name, card_type, work_code, bp, ap_cost,
+		SELECT id, card_number, card_variant_id, name, card_type, color, work_code, bp, ap_cost,
 			   energy_cost, energy_produce, rarity, characteristics, effect_text,
 			   trigger_effect, keywords, image_url, created_at, updated_at
 		FROM cards %s
-		ORDER BY card_number ASC
+		ORDER BY card_number ASC, rarity ASC
 		LIMIT $%d OFFSET $%d`, whereClause, argCount+1, argCount+2)
 
 	args = append(args, limit, offset)
@@ -211,8 +298,8 @@ func (r *cardRepository) List(ctx context.Context, filters CardFilters, page, li
 	for rows.Next() {
 		card := &models.Card{}
 		err := rows.Scan(
-			&card.ID, &card.CardNumber, &card.Name, &card.CardType, &card.WorkCode,
-			&card.BP, &card.APCost, &card.EnergyCost, &card.EnergyProduce,
+			&card.ID, &card.CardNumber, &card.CardVariantID, &card.Name, &card.CardType, &card.Color,
+			&card.WorkCode, &card.BP, &card.APCost, &card.EnergyCost, &card.EnergyProduce,
 			&card.Rarity, pq.Array(&card.Characteristics), &card.EffectText,
 			&card.TriggerEffect, pq.Array(&card.Keywords), &card.ImageURL,
 			&card.CreatedAt, &card.UpdatedAt)
@@ -228,15 +315,15 @@ func (r *cardRepository) List(ctx context.Context, filters CardFilters, page, li
 func (r *cardRepository) Update(ctx context.Context, card *models.Card) error {
 	query := `
 		UPDATE cards SET
-			name = $2, card_type = $3, work_code = $4, bp = $5, ap_cost = $6,
-			energy_cost = $7, energy_produce = $8, rarity = $9, 
-			characteristics = $10, effect_text = $11, trigger_effect = $12,
-			keywords = $13, image_url = $14, updated_at = $15
+			card_number = $2, card_variant_id = $3, name = $4, card_type = $5, color = $6, work_code = $7, 
+			bp = $8, ap_cost = $9, energy_cost = $10, energy_produce = $11, rarity = $12, 
+			characteristics = $13, effect_text = $14, trigger_effect = $15,
+			keywords = $16, image_url = $17, updated_at = $18
 		WHERE id = $1`
 
 	_, err := r.db.ExecContext(ctx, query,
-		card.ID, card.Name, card.CardType, card.WorkCode, card.BP,
-		card.APCost, card.EnergyCost, card.EnergyProduce, card.Rarity,
+		card.ID, card.CardNumber, card.CardVariantID, card.Name, card.CardType, card.Color, card.WorkCode, 
+		card.BP, card.APCost, card.EnergyCost, card.EnergyProduce, card.Rarity,
 		pq.Array(card.Characteristics), card.EffectText, card.TriggerEffect,
 		pq.Array(card.Keywords), card.ImageURL, card.UpdatedAt)
 
@@ -264,7 +351,7 @@ func (r *cardRepository) Delete(ctx context.Context, id uuid.UUID) error {
 
 func (r *cardRepository) SearchByName(ctx context.Context, name string, limit int) ([]*models.Card, error) {
 	query := `
-		SELECT id, card_number, name, card_type, work_code, bp, ap_cost,
+		SELECT id, card_number, card_variant_id, name, card_type, color, work_code, bp, ap_cost,
 			   energy_cost, energy_produce, rarity, characteristics, effect_text,
 			   trigger_effect, keywords, image_url, created_at, updated_at
 		FROM cards 
@@ -284,8 +371,8 @@ func (r *cardRepository) SearchByName(ctx context.Context, name string, limit in
 	for rows.Next() {
 		card := &models.Card{}
 		err := rows.Scan(
-			&card.ID, &card.CardNumber, &card.Name, &card.CardType, &card.WorkCode,
-			&card.BP, &card.APCost, &card.EnergyCost, &card.EnergyProduce,
+			&card.ID, &card.CardNumber, &card.CardVariantID, &card.Name, &card.CardType, &card.Color,
+			&card.WorkCode, &card.BP, &card.APCost, &card.EnergyCost, &card.EnergyProduce,
 			&card.Rarity, pq.Array(&card.Characteristics), &card.EffectText,
 			&card.TriggerEffect, pq.Array(&card.Keywords), &card.ImageURL,
 			&card.CreatedAt, &card.UpdatedAt)
@@ -308,7 +395,7 @@ func (r *cardRepository) GetByWorkCode(ctx context.Context, workCode string, pag
 
 	offset := (page - 1) * limit
 	query := `
-		SELECT id, card_number, name, card_type, work_code, bp, ap_cost,
+		SELECT id, card_number, card_variant_id, name, card_type, color, work_code, bp, ap_cost,
 			   energy_cost, energy_produce, rarity, characteristics, effect_text,
 			   trigger_effect, keywords, image_url, created_at, updated_at
 		FROM cards 
@@ -326,8 +413,8 @@ func (r *cardRepository) GetByWorkCode(ctx context.Context, workCode string, pag
 	for rows.Next() {
 		card := &models.Card{}
 		err := rows.Scan(
-			&card.ID, &card.CardNumber, &card.Name, &card.CardType, &card.WorkCode,
-			&card.BP, &card.APCost, &card.EnergyCost, &card.EnergyProduce,
+			&card.ID, &card.CardNumber, &card.CardVariantID, &card.Name, &card.CardType, &card.Color,
+			&card.WorkCode, &card.BP, &card.APCost, &card.EnergyCost, &card.EnergyProduce,
 			&card.Rarity, pq.Array(&card.Characteristics), &card.EffectText,
 			&card.TriggerEffect, pq.Array(&card.Keywords), &card.ImageURL,
 			&card.CreatedAt, &card.UpdatedAt)
@@ -340,40 +427,64 @@ func (r *cardRepository) GetByWorkCode(ctx context.Context, workCode string, pag
 	return cards, total, nil
 }
 
-func (r *cardRepository) ValidateDeck(ctx context.Context, deckCards []models.DeckCard) error {
-	if len(deckCards) < 40 || len(deckCards) > 60 {
-		return fmt.Errorf("deck must contain between 40 and 60 cards")
-	}
-
-	cardCounts := make(map[uuid.UUID]int)
-	var cardIDs []uuid.UUID
+func (r *cardRepository) ValidateDeck(ctx context.Context, deckCards []models.CardInstance) error {
+	totalCards := 0
+	cardVariantCounts := make(map[string]int)
+	baseCardCounts := make(map[string]int)
+	var cardVariantIDs []string
 
 	for _, deckCard := range deckCards {
-		cardCounts[deckCard.CardID] += deckCard.Quantity
-		cardIDs = append(cardIDs, deckCard.CardID)
+		totalCards += deckCard.Quantity
+		cardVariantCounts[deckCard.CardVariantID] += deckCard.Quantity
+		cardVariantIDs = append(cardVariantIDs, deckCard.CardVariantID)
+		
+		// Extract base card number for duplicate counting
+		cardNumber, _ := models.ParseCardVariantID(deckCard.CardVariantID)
+		baseCardCounts[cardNumber] += deckCard.Quantity
 	}
 
-	query := `SELECT id, card_type FROM cards WHERE id = ANY($1)`
-	rows, err := r.db.QueryContext(ctx, query, pq.Array(cardIDs))
+	// Union Arena requires exactly 50 cards
+	if totalCards != 50 {
+		return fmt.Errorf("deck must contain exactly 50 cards, found %d", totalCards)
+	}
+
+	// Validate cards exist and check copy limits
+	query := `SELECT card_variant_id, card_number, card_type FROM cards WHERE card_variant_id = ANY($1)`
+	rows, err := r.db.QueryContext(ctx, query, pq.Array(cardVariantIDs))
 	if err != nil {
 		return err
 	}
 	defer rows.Close()
 
+	foundVariants := make(map[string]bool)
 	for rows.Next() {
-		var cardID uuid.UUID
-		var cardType string
-		if err := rows.Scan(&cardID, &cardType); err != nil {
+		var cardVariantID, cardNumber, cardType string
+		if err := rows.Scan(&cardVariantID, &cardNumber, &cardType); err != nil {
 			return err
 		}
+		
+		foundVariants[cardVariantID] = true
 
-		maxCopies := 3
-		if cardType == models.CardTypeAP {
-			maxCopies = 4
+		// Check per-variant copy limits (same rarity version)
+		if cardVariantCounts[cardVariantID] > 4 {
+			return fmt.Errorf("card variant %s exceeds maximum 4 copies per variant", cardVariantID)
 		}
 
-		if cardCounts[cardID] > maxCopies {
-			return fmt.Errorf("card %s exceeds maximum allowed copies (%d)", cardID, maxCopies)
+		// Check per-base-card copy limits (across all rarities)
+		maxCopiesPerCard := 4
+		if cardType == models.CardTypeAP {
+			maxCopiesPerCard = 6 // AP cards can have more copies
+		}
+
+		if baseCardCounts[cardNumber] > maxCopiesPerCard {
+			return fmt.Errorf("card %s (all rarities combined) exceeds maximum %d copies", cardNumber, maxCopiesPerCard)
+		}
+	}
+
+	// Check if all card variants exist
+	for _, variantID := range cardVariantIDs {
+		if !foundVariants[variantID] {
+			return fmt.Errorf("card variant %s not found", variantID)
 		}
 	}
 

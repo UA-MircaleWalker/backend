@@ -140,6 +140,7 @@ func (s *userService) Register(ctx context.Context, req *RegisterRequest) (*Regi
 		DisplayName:  req.DisplayName,
 		Level:        1,
 		Experience:   0,
+		IsActive:     true, // Explicitly set user as active
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
 	}

@@ -16,7 +16,7 @@ type Config struct {
 func Load() *Config {
 	return &Config{
 		Port:        getEnv("PORT", "8080"),
-		PostgresURL: getEnv("POSTGRES_URL", "postgres://postgres:password@localhost:5432/ua_game?sslmode=disable"),
+		PostgresURL: getEnv("POSTGRES_URL", "postgres://ua_user:ua_password@localhost:5432/ua_game?sslmode=disable"),
 		RedisURL:    getEnv("REDIS_URL", "redis://localhost:6379"),
 		JWTSecret:   getEnv("JWT_SECRET", "your-secret-key"),
 		Environment: getEnv("ENVIRONMENT", "development"),

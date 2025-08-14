@@ -1,0 +1,737 @@
+basePath: /api/v1
+definitions:
+  internal_handler.ActionRequest:
+    properties:
+      action_data:
+        items:
+          type: integer
+        type: array
+      action_type:
+        type: string
+    required:
+    - action_type
+    type: object
+  internal_handler.MulliganRequest:
+    properties:
+      mulligan:
+        type: boolean
+    type: object
+  models.Board:
+    properties:
+      character_zones:
+        items:
+          items:
+            $ref: '#/definitions/models.CardInPlay'
+          type: array
+        type: array
+      field_zone:
+        items:
+          $ref: '#/definitions/models.CardInPlay'
+        type: array
+    type: object
+  models.Card:
+    properties:
+      ap_cost:
+        type: integer
+      bp:
+        type: integer
+      card_number:
+        description: '基礎卡號 (如: "UA25BT-001")'
+        type: string
+      card_type:
+        description: -- CHARACTER, FIELD, EVENT, AP
+        type: string
+      card_variant_id:
+        description: '完整變體ID (如: "UA25BT-001-SR", "UA25BT-001-R")'
+        type: string
+      characteristics:
+        description: -- 特徵標籤
+        items:
+          type: string
+        type: array
+      color:
+        type: string
+      created_at:
+        type: string
+      effect_text:
+        type: string
+      energy_cost:
+        description: '-- 能源需求 {"red": 2, "blue": 1}'
+        items:
+          type: integer
+        type: array
+      energy_produce:
+        description: '-- 能源產生 {"red": 1, "blue": 0}'
+        items:
+          type: integer
+        type: array
+      id:
+        type: string
+      image_url:
+        description: 稀有度特定圖片 URL
+        type: string
+      keywords:
+        description: -- 關鍵字 [レイド, 狙い撃ち, ダメージ2]
+        items:
+          type: string
+        type: array
+      name:
+        type: string
+      rarity:
+        type: string
+      rarity_code:
+        description: 稀有度代碼 ("C", "U", "R", "SR", "SEC")
+        type: string
+      trigger_effect:
+        type: string
+      updated_at:
+        type: string
+      work_code:
+        description: -- 作品編號 (前3碼)
+        type: string
+    type: object
+  models.CardInPlay:
+    properties:
+      card:
+        $ref: '#/definitions/models.Card'
+      modifiers:
+        items:
+          $ref: '#/definitions/models.CardModifier'
+        type: array
+      owner:
+        type: string
+      position:
+        $ref: '#/definitions/models.Position'
+      status:
+        $ref: '#/definitions/models.CardStatus'
+    type: object
+  models.CardModifier:
+    properties:
+      applied_at:
+        type: integer
+      duration:
+        type: integer
+      source:
+        type: string
+      type:
+        type: string
+      value: {}
+    type: object
+  models.CardStatus:
+    properties:
+      can_act:
+        type: boolean
+      can_attack:
+        type: boolean
+      can_block:
+        type: boolean
+      is_exhausted:
+        type: boolean
+    type: object
+  models.GameAction:
+    properties:
+      action_data:
+        items:
+          type: integer
+        type: array
+      action_type:
+        type: string
+      error_msg:
+        type: string
+      game_id:
+        type: string
+      id:
+        type: string
+      is_valid:
+        type: boolean
+      phase:
+        $ref: '#/definitions/models.Phase'
+      player_id:
+        type: string
+      timestamp:
+        type: string
+      turn:
+        type: integer
+    type: object
+  models.GameState:
+    properties:
+      action_log:
+        items:
+          $ref: '#/definitions/models.GameAction'
+        type: array
+      active_player:
+        type: string
+      board:
+        $ref: '#/definitions/models.Board'
+      first_player:
+        description: 先攻玩家ID
+        type: string
+      life_area_setup:
+        description: 記錄是否已設置生命區
+        type: boolean
+      mulligan_completed:
+        additionalProperties:
+          type: boolean
+        description: 記錄每個玩家是否完成調度
+        type: object
+      phase:
+        $ref: '#/definitions/models.Phase'
+      players:
+        additionalProperties:
+          $ref: '#/definitions/models.Player'
+        type: object
+      turn:
+        type: integer
+    type: object
+  models.GameStatus:
+    enum:
+    - WAITING
+    - IN_PROGRESS
+    - COMPLETED
+    - ABANDONED
+    type: string
+    x-enum-varnames:
+    - GameStatusWaiting
+    - GameStatusInProgress
+    - GameStatusCompleted
+    - GameStatusAbandoned
+  models.Phase:
+    enum:
+    - 0
+    - 1
+    - 2
+    - 3
+    - 4
+    type: integer
+    x-enum-varnames:
+    - StartPhase
+    - MovePhase
+    - MainPhase
+    - AttackPhase
+    - EndPhase
+  models.Player:
+    properties:
+      ap:
+        type: integer
+      characters:
+        items:
+          $ref: '#/definitions/models.CardInPlay'
+        type: array
+      deck:
+        items:
+          $ref: '#/definitions/models.Card'
+        type: array
+      energy:
+        additionalProperties:
+          type: integer
+        type: object
+      events:
+        items:
+          $ref: '#/definitions/models.CardInPlay'
+        type: array
+      extra_draw_used:
+        description: 本回合是否已使用額外抽卡
+        type: boolean
+      fields:
+        items:
+          $ref: '#/definitions/models.CardInPlay'
+        type: array
+      graveyard:
+        items:
+          $ref: '#/definitions/models.Card'
+        type: array
+      hand:
+        items:
+          $ref: '#/definitions/models.Card'
+        type: array
+      id:
+        type: string
+      life_area:
+        description: 生命區：7張背面朝上的卡片，遊戲開始時從卡組頂部設置
+        items:
+          $ref: '#/definitions/models.Card'
+        type: array
+      max_ap:
+        type: integer
+      removed_cards:
+        items:
+          $ref: '#/definitions/models.Card'
+        type: array
+    type: object
+  models.Position:
+    properties:
+      slot:
+        type: integer
+      zone:
+        type: integer
+    type: object
+  ua_services_game-battle-service_internal_service.ActionResponse:
+    properties:
+      effects:
+        items:
+          $ref: '#/definitions/ua_services_game-battle-service_internal_service.EffectResult'
+        type: array
+      error:
+        type: string
+      events_triggered:
+        items:
+          $ref: '#/definitions/ua_services_game-battle-service_internal_service.GameEvent'
+        type: array
+      game_state:
+        $ref: '#/definitions/models.GameState'
+      next_phase:
+        $ref: '#/definitions/models.Phase'
+      success:
+        type: boolean
+    type: object
+  ua_services_game-battle-service_internal_service.ActiveGamesResponse:
+    properties:
+      games:
+        items:
+          $ref: '#/definitions/ua_services_game-battle-service_internal_service.GameInfo'
+        type: array
+    type: object
+  ua_services_game-battle-service_internal_service.CreateGameRequest:
+    properties:
+      game_mode:
+        type: string
+      player1_deck:
+        items:
+          $ref: '#/definitions/models.Card'
+        type: array
+      player1_id:
+        type: string
+      player2_deck:
+        items:
+          $ref: '#/definitions/models.Card'
+        type: array
+      player2_id:
+        type: string
+    required:
+    - game_mode
+    - player1_deck
+    - player1_id
+    - player2_deck
+    - player2_id
+    type: object
+  ua_services_game-battle-service_internal_service.EffectResult:
+    properties:
+      applied:
+        type: boolean
+      description:
+        type: string
+      source:
+        type: string
+      target:
+        type: string
+      type:
+        type: string
+      value: {}
+    type: object
+  ua_services_game-battle-service_internal_service.GameEvent:
+    properties:
+      data:
+        additionalProperties: true
+        type: object
+      source:
+        type: string
+      target:
+        type: string
+      timestamp:
+        type: string
+      type:
+        type: string
+    type: object
+  ua_services_game-battle-service_internal_service.GameInfo:
+    properties:
+      active_player:
+        type: string
+      completed_at:
+        type: string
+      created_at:
+        type: string
+      current_turn:
+        type: integer
+      id:
+        type: string
+      phase:
+        $ref: '#/definitions/models.Phase'
+      player1_id:
+        type: string
+      player2_id:
+        type: string
+      started_at:
+        type: string
+      status:
+        $ref: '#/definitions/models.GameStatus'
+      updated_at:
+        type: string
+      winner:
+        type: string
+    type: object
+  ua_services_game-battle-service_internal_service.GameResponse:
+    properties:
+      game:
+        $ref: '#/definitions/ua_services_game-battle-service_internal_service.GameInfo'
+      game_state:
+        $ref: '#/definitions/models.GameState'
+      message:
+        type: string
+    type: object
+  utils.Response:
+    properties:
+      data: {}
+      error:
+        type: string
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
+host: localhost:8004
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: Real-time game battle microservice for UA Card Battle Game
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  termsOfService: http://swagger.io/terms/
+  title: UA Game Battle Service API
+  version: "1.0"
+paths:
+  /games:
+    post:
+      consumes:
+      - application/json
+      description: Create a new game between two players
+      parameters:
+      - description: Game creation data
+        in: body
+        name: game
+        required: true
+        schema:
+          $ref: '#/definitions/ua_services_game-battle-service_internal_service.CreateGameRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/ua_services_game-battle-service_internal_service.GameResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      summary: Create a new game
+      tags:
+      - games
+  /games/{gameId}:
+    get:
+      description: Get the current state of a game
+      parameters:
+      - description: Game ID
+        in: path
+        name: gameId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/ua_services_game-battle-service_internal_service.GameResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: Get game state
+      tags:
+      - games
+  /games/{gameId}/actions:
+    post:
+      consumes:
+      - application/json
+      description: Play an action in a game
+      parameters:
+      - description: Game ID
+        in: path
+        name: gameId
+        required: true
+        type: string
+      - description: Action data
+        in: body
+        name: action
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.ActionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/ua_services_game-battle-service_internal_service.ActionResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: Play an action
+      tags:
+      - games
+  /games/{gameId}/join:
+    post:
+      description: Join an existing game as a player
+      parameters:
+      - description: Game ID
+        in: path
+        name: gameId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/ua_services_game-battle-service_internal_service.GameResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: Join a game
+      tags:
+      - games
+  /games/{gameId}/mulligan:
+    post:
+      consumes:
+      - application/json
+      description: Player decides whether to mulligan their hand
+      parameters:
+      - description: Game ID
+        in: path
+        name: gameId
+        required: true
+        type: string
+      - description: Mulligan decision
+        in: body
+        name: mulligan
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.MulliganRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/ua_services_game-battle-service_internal_service.GameResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: Perform mulligan
+      tags:
+      - games
+  /games/{gameId}/start:
+    post:
+      description: Start a game that is waiting for players
+      parameters:
+      - description: Game ID
+        in: path
+        name: gameId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/ua_services_game-battle-service_internal_service.GameResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: Start a game
+      tags:
+      - games
+  /games/{gameId}/surrender:
+    post:
+      description: Surrender the current game
+      parameters:
+      - description: Game ID
+        in: path
+        name: gameId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/ua_services_game-battle-service_internal_service.GameResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: Surrender game
+      tags:
+      - games
+  /games/active:
+    get:
+      description: Get all active games for the current player
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/ua_services_game-battle-service_internal_service.ActiveGamesResponse'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: Get active games
+      tags:
+      - games
+schemes:
+- http
+- https
+securityDefinitions:
+  BearerAuth:
+    description: Type "Bearer" followed by a space and JWT token.
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

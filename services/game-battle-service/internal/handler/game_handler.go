@@ -28,8 +28,7 @@ func NewGameHandler(gameService service.GameService) *GameHandler {
 // @Success 201 {object} utils.Response{data=service.GameResponse}
 // @Failure 400 {object} utils.Response
 // @Failure 500 {object} utils.Response
-// @Security BearerAuth
-// @Router /api/v1/games [post]
+// @Router /games [post]
 func (h *GameHandler) CreateGame(c *gin.Context) {
 	var req service.CreateGameRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -57,7 +56,7 @@ func (h *GameHandler) CreateGame(c *gin.Context) {
 // @Failure 404 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Security BearerAuth
-// @Router /api/v1/games/{gameId}/join [post]
+// @Router /games/{gameId}/join [post]
 func (h *GameHandler) JoinGame(c *gin.Context) {
 	gameIDStr := c.Param("gameId")
 	gameID, err := uuid.Parse(gameIDStr)
@@ -105,7 +104,7 @@ func (h *GameHandler) JoinGame(c *gin.Context) {
 // @Failure 404 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Security BearerAuth
-// @Router /api/v1/games/{gameId}/start [post]
+// @Router /games/{gameId}/start [post]
 func (h *GameHandler) StartGame(c *gin.Context) {
 	gameIDStr := c.Param("gameId")
 	gameID, err := uuid.Parse(gameIDStr)
@@ -140,7 +139,7 @@ func (h *GameHandler) StartGame(c *gin.Context) {
 // @Failure 404 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Security BearerAuth
-// @Router /api/v1/games/{gameId}/mulligan [post]
+// @Router /games/{gameId}/mulligan [post]
 func (h *GameHandler) PerformMulligan(c *gin.Context) {
 	gameIDStr := c.Param("gameId")
 	gameID, err := uuid.Parse(gameIDStr)
@@ -199,7 +198,7 @@ func (h *GameHandler) PerformMulligan(c *gin.Context) {
 // @Failure 404 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Security BearerAuth
-// @Router /api/v1/games/{gameId}/actions [post]
+// @Router /games/{gameId}/actions [post]
 func (h *GameHandler) PlayAction(c *gin.Context) {
 	gameIDStr := c.Param("gameId")
 	gameID, err := uuid.Parse(gameIDStr)
@@ -253,7 +252,7 @@ func (h *GameHandler) PlayAction(c *gin.Context) {
 // @Failure 404 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Security BearerAuth
-// @Router /api/v1/games/{gameId} [get]
+// @Router /games/{gameId} [get]
 func (h *GameHandler) GetGame(c *gin.Context) {
 	gameIDStr := c.Param("gameId")
 	gameID, err := uuid.Parse(gameIDStr)
@@ -294,7 +293,7 @@ func (h *GameHandler) GetGame(c *gin.Context) {
 // @Success 200 {object} utils.Response{data=service.ActiveGamesResponse}
 // @Failure 500 {object} utils.Response
 // @Security BearerAuth
-// @Router /api/v1/games/active [get]
+// @Router /games/active [get]
 func (h *GameHandler) GetActiveGames(c *gin.Context) {
 	playerIDInterface, exists := c.Get("user_id")
 	if !exists {
@@ -328,7 +327,7 @@ func (h *GameHandler) GetActiveGames(c *gin.Context) {
 // @Failure 404 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Security BearerAuth
-// @Router /api/v1/games/{gameId}/surrender [post]
+// @Router /games/{gameId}/surrender [post]
 func (h *GameHandler) SurrenderGame(c *gin.Context) {
 	gameIDStr := c.Param("gameId")
 	gameID, err := uuid.Parse(gameIDStr)

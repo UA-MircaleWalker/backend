@@ -1,0 +1,786 @@
+basePath: /api/v1
+definitions:
+  internal_handler.AnalyticsRequestBody:
+    properties:
+      end_date:
+        type: string
+      game_mode:
+        type: string
+      player_id:
+        type: string
+      start_date:
+        type: string
+    type: object
+  internal_handler.PlayerComparisonResponse:
+    properties:
+      comparison:
+        additionalProperties: true
+        type: object
+      player1:
+        $ref: '#/definitions/ua_services_game-result-service_internal_service.PlayerStatsResponse'
+      player2:
+        $ref: '#/definitions/ua_services_game-result-service_internal_service.PlayerStatsResponse'
+    type: object
+  models.GameResult:
+    properties:
+      completed_at:
+        type: string
+      end_reason:
+        type: string
+      game_duration:
+        type: integer
+      game_id:
+        type: string
+      id:
+        type: string
+      player1_id:
+        type: string
+      player2_id:
+        type: string
+      total_turns:
+        type: integer
+      winner:
+        type: string
+    type: object
+  models.User:
+    properties:
+      avatar_url:
+        type: string
+      created_at:
+        type: string
+      display_name:
+        type: string
+      email:
+        type: string
+      experience:
+        type: integer
+      id:
+        type: string
+      is_active:
+        type: boolean
+      last_login_at:
+        type: string
+      level:
+        type: integer
+      rank:
+        type: integer
+      rank_points:
+        type: integer
+      updated_at:
+        type: string
+      username:
+        type: string
+    type: object
+  ua_services_game-result-service_internal_repository.CardUsageStats:
+    properties:
+      avg_position:
+        type: integer
+      card_id:
+        type: string
+      card_name:
+        type: string
+      usage_count:
+        type: integer
+      win_rate:
+        type: number
+    type: object
+  ua_services_game-result-service_internal_repository.GameAnalytics:
+    properties:
+      active_players:
+        type: integer
+      avg_game_length:
+        type: integer
+      games_by_hour:
+        additionalProperties:
+          type: integer
+        type: object
+      games_by_mode:
+        additionalProperties:
+          type: integer
+        type: object
+      player_retention:
+        $ref: '#/definitions/ua_services_game-result-service_internal_repository.PlayerRetentionStats'
+      popular_cards:
+        items:
+          $ref: '#/definitions/ua_services_game-result-service_internal_repository.CardUsageStats'
+        type: array
+      total_games:
+        type: integer
+      total_players:
+        type: integer
+      win_rate_by_turns:
+        items:
+          $ref: '#/definitions/ua_services_game-result-service_internal_repository.TurnWinRate'
+        type: array
+    type: object
+  ua_services_game-result-service_internal_repository.LeaderboardEntry:
+    properties:
+      rank:
+        type: integer
+      rank_change:
+        type: integer
+      stats:
+        $ref: '#/definitions/ua_services_game-result-service_internal_repository.PlayerStats'
+      user:
+        $ref: '#/definitions/models.User'
+    type: object
+  ua_services_game-result-service_internal_repository.MatchHistoryEntry:
+    properties:
+      cards_played:
+        type: integer
+      duration:
+        type: integer
+      game_result:
+        $ref: '#/definitions/models.GameResult'
+      opponent:
+        $ref: '#/definitions/models.User'
+      opponent_stats:
+        $ref: '#/definitions/ua_services_game-result-service_internal_repository.PlayerStats'
+      result:
+        description: won, lost, draw
+        type: string
+      turns_played:
+        type: integer
+    type: object
+  ua_services_game-result-service_internal_repository.PlayerRetentionStats:
+    properties:
+      day1_retention:
+        type: number
+      day7_retention:
+        type: number
+      day30_retention:
+        type: number
+    type: object
+  ua_services_game-result-service_internal_repository.PlayerStats:
+    properties:
+      avg_game_time:
+        type: integer
+      best_streak:
+        type: integer
+      current_rank:
+        type: integer
+      current_streak:
+        type: integer
+      games_lost:
+        type: integer
+      games_played:
+        type: integer
+      games_won:
+        type: integer
+      last_played:
+        type: string
+      previous_rank:
+        type: integer
+      rank_points:
+        type: integer
+      total_game_time:
+        type: integer
+      updated_at:
+        type: string
+      user_id:
+        type: string
+      win_rate:
+        type: number
+    type: object
+  ua_services_game-result-service_internal_repository.TurnWinRate:
+    properties:
+      game_count:
+        type: integer
+      turn_range:
+        type: string
+      win_rate:
+        type: number
+    type: object
+  ua_services_game-result-service_internal_service.Achievement:
+    properties:
+      condition:
+        type: string
+      description:
+        type: string
+      icon_url:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      progress:
+        type: integer
+      reward:
+        type: string
+      target:
+        type: integer
+      type:
+        type: string
+      unlocked_at:
+        type: string
+    type: object
+  ua_services_game-result-service_internal_service.AnalyticsResponse:
+    properties:
+      overview:
+        $ref: '#/definitions/ua_services_game-result-service_internal_repository.GameAnalytics'
+      top_performers:
+        items:
+          $ref: '#/definitions/ua_services_game-result-service_internal_service.TopPerformer'
+        type: array
+      trend_data:
+        items:
+          $ref: '#/definitions/ua_services_game-result-service_internal_service.TrendDataPoint'
+        type: array
+    type: object
+  ua_services_game-result-service_internal_service.LeaderboardResponse:
+    properties:
+      entries:
+        items:
+          $ref: '#/definitions/ua_services_game-result-service_internal_repository.LeaderboardEntry'
+        type: array
+      limit:
+        type: integer
+      page:
+        type: integer
+      total:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  ua_services_game-result-service_internal_service.MatchHistoryResponse:
+    properties:
+      entries:
+        items:
+          $ref: '#/definitions/ua_services_game-result-service_internal_repository.MatchHistoryEntry'
+        type: array
+      limit:
+        type: integer
+      page:
+        type: integer
+      total:
+        type: integer
+    type: object
+  ua_services_game-result-service_internal_service.PlayerStatsResponse:
+    properties:
+      achievements:
+        items:
+          $ref: '#/definitions/ua_services_game-result-service_internal_service.Achievement'
+        type: array
+      rank_history:
+        items:
+          $ref: '#/definitions/ua_services_game-result-service_internal_service.RankHistoryEntry'
+        type: array
+      stats:
+        $ref: '#/definitions/ua_services_game-result-service_internal_repository.PlayerStats'
+      user:
+        $ref: '#/definitions/models.User'
+    type: object
+  ua_services_game-result-service_internal_service.PlayerStatsUpdate:
+    properties:
+      new_stats:
+        $ref: '#/definitions/ua_services_game-result-service_internal_repository.PlayerStats'
+      previous_stats:
+        $ref: '#/definitions/ua_services_game-result-service_internal_repository.PlayerStats'
+      rank_points_change:
+        type: integer
+      streak_change:
+        type: integer
+    type: object
+  ua_services_game-result-service_internal_service.RankChange:
+    properties:
+      change:
+        type: integer
+      new_rank:
+        type: integer
+      previous_rank:
+        type: integer
+    type: object
+  ua_services_game-result-service_internal_service.RankHistoryEntry:
+    properties:
+      change:
+        type: integer
+      date:
+        type: string
+      rank:
+        type: integer
+      rank_points:
+        type: integer
+    type: object
+  ua_services_game-result-service_internal_service.RecordResultRequest:
+    properties:
+      completed_at:
+        type: string
+      end_reason:
+        type: string
+      game_duration:
+        minimum: 1
+        type: integer
+      game_id:
+        type: string
+      game_mode:
+        type: string
+      player1_id:
+        type: string
+      player2_id:
+        type: string
+      total_turns:
+        minimum: 1
+        type: integer
+      winner:
+        type: string
+    required:
+    - end_reason
+    - game_id
+    - player1_id
+    - player2_id
+    type: object
+  ua_services_game-result-service_internal_service.RecordResultResponse:
+    properties:
+      achievements_unlocked:
+        items:
+          $ref: '#/definitions/ua_services_game-result-service_internal_service.Achievement'
+        type: array
+      player1_stats_update:
+        $ref: '#/definitions/ua_services_game-result-service_internal_service.PlayerStatsUpdate'
+      player2_stats_update:
+        $ref: '#/definitions/ua_services_game-result-service_internal_service.PlayerStatsUpdate'
+      rank_changes:
+        additionalProperties:
+          $ref: '#/definitions/ua_services_game-result-service_internal_service.RankChange'
+        type: object
+      result_id:
+        type: string
+    type: object
+  ua_services_game-result-service_internal_service.TopPerformer:
+    properties:
+      metric:
+        type: string
+      stats:
+        $ref: '#/definitions/ua_services_game-result-service_internal_repository.PlayerStats'
+      user:
+        $ref: '#/definitions/models.User'
+      value:
+        type: number
+    type: object
+  ua_services_game-result-service_internal_service.TrendDataPoint:
+    properties:
+      active_users:
+        type: integer
+      avg_duration:
+        type: integer
+      date:
+        type: string
+      games_played:
+        type: integer
+    type: object
+  utils.Response:
+    properties:
+      data: {}
+      error:
+        type: string
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
+host: localhost:8005
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: Game result and statistics microservice for UA Card Battle Game
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  termsOfService: http://swagger.io/terms/
+  title: UA Game Result Service API
+  version: "1.0"
+paths:
+  /api/v1/analytics:
+    post:
+      consumes:
+      - application/json
+      description: Get analytics data for games within a date range
+      parameters:
+      - description: Analytics request parameters
+        in: body
+        name: analytics
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.AnalyticsRequestBody'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/ua_services_game-result-service_internal_service.AnalyticsResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: Get game analytics
+      tags:
+      - results
+  /api/v1/analytics/overview:
+    get:
+      description: Get high-level analytics overview
+      parameters:
+      - description: Start date (YYYY-MM-DD)
+        format: date
+        in: query
+        name: start_date
+        type: string
+      - description: End date (YYYY-MM-DD)
+        format: date
+        in: query
+        name: end_date
+        type: string
+      - description: Game mode filter
+        in: query
+        name: mode
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/ua_services_game-result-service_internal_service.AnalyticsResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: Get analytics overview
+      tags:
+      - results
+  /api/v1/leaderboard:
+    get:
+      description: Get ranked leaderboard with filtering options
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Items per page
+        in: query
+        name: limit
+        type: integer
+      - default: all
+        description: Time frame filter
+        enum:
+        - all
+        - week
+        - month
+        in: query
+        name: time_frame
+        type: string
+      - default: all
+        description: Game mode filter
+        enum:
+        - all
+        - ranked
+        - casual
+        in: query
+        name: mode
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/ua_services_game-result-service_internal_service.LeaderboardResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      summary: Get leaderboard
+      tags:
+      - results
+  /api/v1/results:
+    post:
+      consumes:
+      - application/json
+      description: Record the result of a completed game
+      parameters:
+      - description: Game result data
+        in: body
+        name: result
+        required: true
+        schema:
+          $ref: '#/definitions/ua_services_game-result-service_internal_service.RecordResultRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/ua_services_game-result-service_internal_service.RecordResultResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: Record game result
+      tags:
+      - results
+  /api/v1/results/{gameId}:
+    get:
+      description: Get result details for a specific game
+      parameters:
+      - description: Game ID
+        in: path
+        name: gameId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.GameResult'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      summary: Get game result
+      tags:
+      - results
+  /api/v1/results/{userId}/achievements:
+    get:
+      description: Get achievements for a player
+      parameters:
+      - description: User ID
+        in: path
+        name: userId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/ua_services_game-result-service_internal_service.Achievement'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      summary: Get player achievements
+      tags:
+      - results
+  /api/v1/results/{userId}/history:
+    get:
+      description: Get match history for a player
+      parameters:
+      - description: User ID
+        in: path
+        name: userId
+        required: true
+        type: string
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Items per page
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/ua_services_game-result-service_internal_service.MatchHistoryResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: Get match history
+      tags:
+      - results
+  /api/v1/results/{userId}/stats:
+    get:
+      description: Get comprehensive statistics for a player
+      parameters:
+      - description: User ID
+        in: path
+        name: userId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/ua_services_game-result-service_internal_service.PlayerStatsResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      summary: Get player statistics
+      tags:
+      - results
+  /api/v1/results/compare:
+    get:
+      description: Compare statistics between two players
+      parameters:
+      - description: First player ID
+        in: query
+        name: player1
+        required: true
+        type: string
+      - description: Second player ID
+        in: query
+        name: player2
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_handler.PlayerComparisonResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      summary: Get player comparison
+      tags:
+      - results
+  /api/v1/results/rankings/update:
+    post:
+      description: Recalculate and update all player rankings (admin only)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: Update player rankings
+      tags:
+      - results
+schemes:
+- http
+- https
+securityDefinitions:
+  BearerAuth:
+    description: Type "Bearer" followed by a space and JWT token.
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

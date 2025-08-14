@@ -10,11 +10,12 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/google/uuid"
 	"ua/shared/config"
 	"ua/shared/database"
 	"ua/shared/models"
 	"ua/shared/redis"
+
+	"github.com/google/uuid"
 )
 
 type TestClient struct {
@@ -155,11 +156,11 @@ func testMulligan(client *TestClient, gameID string, playerID uuid.UUID, mulliga
 
 func verifyGameInDatabase(db *database.DB, gameID string) error {
 	query := `SELECT id, status, game_state FROM games WHERE id = $1`
-	
+
 	var id string
 	var status string
 	var gameStateJSON []byte
-	
+
 	err := db.QueryRowContext(context.Background(), query, gameID).Scan(&id, &status, &gameStateJSON)
 	if err != nil {
 		return fmt.Errorf("查询游戏失败: %v", err)
@@ -167,7 +168,7 @@ func verifyGameInDatabase(db *database.DB, gameID string) error {
 
 	fmt.Printf("  - 游戏ID: %s\n", id)
 	fmt.Printf("  - 游戏状态: %s\n", status)
-	
+
 	// 解析游戏状态
 	var gameState models.GameState
 	if len(gameStateJSON) > 0 {
@@ -185,7 +186,7 @@ func verifyGameInDatabase(db *database.DB, gameID string) error {
 func verifyGameStateInRedis(redisClient *redis.RedisClient, gameID string) error {
 	// Redis中可能存储游戏状态的缓存
 	key := fmt.Sprintf("game:%s:state", gameID)
-	
+
 	exists, err := redisClient.Exists(context.Background(), key)
 	if err != nil {
 		return fmt.Errorf("检查Redis键失败: %v", err)
@@ -207,7 +208,7 @@ func verifyGameStateInRedis(redisClient *redis.RedisClient, gameID string) error
 func verifyFinalGameState(db *database.DB, redisClient *redis.RedisClient, gameID string) error {
 	// 检查数据库中的最终状态
 	query := `SELECT game_state FROM games WHERE id = $1`
-	
+
 	var gameStateJSON []byte
 	err := db.QueryRowContext(context.Background(), query, gameID).Scan(&gameStateJSON)
 	if err != nil {
@@ -222,10 +223,10 @@ func verifyFinalGameState(db *database.DB, redisClient *redis.RedisClient, gameI
 
 		fmt.Printf("  - 调度完成状态: %v\n", gameState.MulliganCompleted)
 		fmt.Printf("  - 生命区设置: %t\n", gameState.LifeAreaSetup)
-		
+
 		// 检查每个玩家的手牌数量
 		for playerID, player := range gameState.Players {
-			fmt.Printf("  - 玩家 %s: 手牌 %d 张, 生命区 %d 张\n", 
+			fmt.Printf("  - 玩家 %s: 手牌 %d 张, 生命区 %d 张\n",
 				playerID.String()[:8], len(player.Hand), len(player.LifeArea))
 		}
 	}

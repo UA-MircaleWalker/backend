@@ -1,0 +1,1147 @@
+basePath: /api/v1
+definitions:
+  models.Board:
+    properties:
+      character_zones:
+        items:
+          items:
+            $ref: '#/definitions/models.CardInPlay'
+          type: array
+        type: array
+      field_zone:
+        items:
+          $ref: '#/definitions/models.CardInPlay'
+        type: array
+    type: object
+  models.Card:
+    properties:
+      ap_cost:
+        type: integer
+      bp:
+        type: integer
+      card_number:
+        description: '基礎卡號 (如: "UA25BT-001")'
+        type: string
+      card_type:
+        description: -- CHARACTER, FIELD, EVENT, AP
+        type: string
+      card_variant_id:
+        description: '完整變體ID (如: "UA25BT-001-SR", "UA25BT-001-R")'
+        type: string
+      characteristics:
+        description: -- 特徵標籤
+        items:
+          type: string
+        type: array
+      color:
+        type: string
+      created_at:
+        type: string
+      effect_text:
+        type: string
+      energy_cost:
+        description: '-- 能源需求 {"red": 2, "blue": 1}'
+        items:
+          type: integer
+        type: array
+      energy_produce:
+        description: '-- 能源產生 {"red": 1, "blue": 0}'
+        items:
+          type: integer
+        type: array
+      id:
+        type: string
+      image_url:
+        description: 稀有度特定圖片 URL
+        type: string
+      keywords:
+        description: -- 關鍵字 [レイド, 狙い撃ち, ダメージ2]
+        items:
+          type: string
+        type: array
+      name:
+        type: string
+      rarity:
+        type: string
+      rarity_code:
+        description: 稀有度代碼 ("C", "U", "R", "SR", "SEC")
+        type: string
+      trigger_effect:
+        type: string
+      updated_at:
+        type: string
+      work_code:
+        description: -- 作品編號 (前3碼)
+        type: string
+    type: object
+  models.CardEffect:
+    properties:
+      action:
+        additionalProperties: true
+        type: object
+      condition:
+        additionalProperties: true
+        type: object
+      description:
+        type: string
+      target:
+        type: string
+      type:
+        type: string
+      value: {}
+    type: object
+  models.CardInPlay:
+    properties:
+      card:
+        $ref: '#/definitions/models.Card'
+      modifiers:
+        items:
+          $ref: '#/definitions/models.CardModifier'
+        type: array
+      owner:
+        type: string
+      position:
+        $ref: '#/definitions/models.Position'
+      status:
+        $ref: '#/definitions/models.CardStatus'
+    type: object
+  models.CardInstance:
+    properties:
+      card_variant_id:
+        description: 關聯到 Card.CardVariantID
+        type: string
+      created_at:
+        type: string
+      deck_id:
+        description: 所屬套牌 (如果在套牌中)
+        type: string
+      id:
+        type: string
+      quantity:
+        description: 數量
+        type: integer
+      updated_at:
+        type: string
+      user_id:
+        description: 擁有者 (如果是收藏卡片)
+        type: string
+    type: object
+  models.CardModifier:
+    properties:
+      applied_at:
+        type: integer
+      duration:
+        type: integer
+      source:
+        type: string
+      type:
+        type: string
+      value: {}
+    type: object
+  models.CardStatus:
+    properties:
+      can_act:
+        type: boolean
+      can_attack:
+        type: boolean
+      can_block:
+        type: boolean
+      is_exhausted:
+        type: boolean
+    type: object
+  models.GameAction:
+    properties:
+      action_data:
+        items:
+          type: integer
+        type: array
+      action_type:
+        type: string
+      error_msg:
+        type: string
+      game_id:
+        type: string
+      id:
+        type: string
+      is_valid:
+        type: boolean
+      phase:
+        $ref: '#/definitions/models.Phase'
+      player_id:
+        type: string
+      timestamp:
+        type: string
+      turn:
+        type: integer
+    type: object
+  models.GameState:
+    properties:
+      action_log:
+        items:
+          $ref: '#/definitions/models.GameAction'
+        type: array
+      active_player:
+        type: string
+      board:
+        $ref: '#/definitions/models.Board'
+      first_player:
+        description: 先攻玩家ID
+        type: string
+      life_area_setup:
+        description: 記錄是否已設置生命區
+        type: boolean
+      mulligan_completed:
+        additionalProperties:
+          type: boolean
+        description: 記錄每個玩家是否完成調度
+        type: object
+      phase:
+        $ref: '#/definitions/models.Phase'
+      players:
+        additionalProperties:
+          $ref: '#/definitions/models.Player'
+        type: object
+      turn:
+        type: integer
+    type: object
+  models.Phase:
+    enum:
+    - 0
+    - 1
+    - 2
+    - 3
+    - 4
+    type: integer
+    x-enum-varnames:
+    - StartPhase
+    - MovePhase
+    - MainPhase
+    - AttackPhase
+    - EndPhase
+  models.Player:
+    properties:
+      ap:
+        type: integer
+      characters:
+        items:
+          $ref: '#/definitions/models.CardInPlay'
+        type: array
+      deck:
+        items:
+          $ref: '#/definitions/models.Card'
+        type: array
+      energy:
+        additionalProperties:
+          type: integer
+        type: object
+      events:
+        items:
+          $ref: '#/definitions/models.CardInPlay'
+        type: array
+      extra_draw_used:
+        description: 本回合是否已使用額外抽卡
+        type: boolean
+      fields:
+        items:
+          $ref: '#/definitions/models.CardInPlay'
+        type: array
+      graveyard:
+        items:
+          $ref: '#/definitions/models.Card'
+        type: array
+      hand:
+        items:
+          $ref: '#/definitions/models.Card'
+        type: array
+      id:
+        type: string
+      life_area:
+        description: 生命區：7張背面朝上的卡片，遊戲開始時從卡組頂部設置
+        items:
+          $ref: '#/definitions/models.Card'
+        type: array
+      max_ap:
+        type: integer
+      removed_cards:
+        items:
+          $ref: '#/definitions/models.Card'
+        type: array
+    type: object
+  models.Position:
+    properties:
+      slot:
+        type: integer
+      zone:
+        type: integer
+    type: object
+  ua_services_card-service_internal_service.CardBalanceAdjustment:
+    properties:
+      ap_cost:
+        type: integer
+      bp:
+        type: integer
+      effect_values:
+        additionalProperties: true
+        type: object
+      energy_cost:
+        additionalProperties:
+          type: integer
+        type: object
+      reason:
+        type: string
+    type: object
+  ua_services_card-service_internal_service.CardPlayValidation:
+    properties:
+      effects:
+        items:
+          $ref: '#/definitions/models.CardEffect'
+        type: array
+      errors:
+        items:
+          type: string
+        type: array
+      is_valid:
+        type: boolean
+      required_ap:
+        type: integer
+      required_energy:
+        additionalProperties:
+          type: integer
+        type: object
+      valid_targets:
+        items:
+          type: string
+        type: array
+      warnings:
+        items:
+          type: string
+        type: array
+    type: object
+  ua_services_card-service_internal_service.CardRulesEngine:
+    properties:
+      card:
+        $ref: '#/definitions/models.Card'
+      effects:
+        items:
+          $ref: '#/definitions/models.CardEffect'
+        type: array
+      keywords:
+        items:
+          $ref: '#/definitions/ua_services_card-service_internal_service.KeywordRule'
+        type: array
+      restrictions:
+        items:
+          $ref: '#/definitions/ua_services_card-service_internal_service.PlayRestriction'
+        type: array
+    type: object
+  ua_services_card-service_internal_service.CreateCardRequest:
+    properties:
+      ap_cost:
+        type: integer
+      bp:
+        type: integer
+      card_number:
+        type: string
+      card_type:
+        type: string
+      characteristics:
+        items:
+          type: string
+        type: array
+      color:
+        type: string
+      effect_text:
+        type: string
+      energy_cost:
+        additionalProperties:
+          type: integer
+        type: object
+      energy_produce:
+        additionalProperties:
+          type: integer
+        type: object
+      image_url:
+        type: string
+      keywords:
+        items:
+          type: string
+        type: array
+      name:
+        type: string
+      rarity:
+        type: string
+      trigger_effect:
+        type: string
+      work_code:
+        type: string
+    required:
+    - card_number
+    - card_type
+    - color
+    - name
+    - rarity
+    - work_code
+    type: object
+  ua_services_card-service_internal_service.DeckValidationResult:
+    properties:
+      card_count:
+        type: integer
+      errors:
+        items:
+          type: string
+        type: array
+      is_valid:
+        type: boolean
+      type_breakdown:
+        additionalProperties:
+          type: integer
+        type: object
+      warnings:
+        items:
+          type: string
+        type: array
+      work_breakdown:
+        additionalProperties:
+          type: integer
+        type: object
+    type: object
+  ua_services_card-service_internal_service.KeywordRule:
+    properties:
+      conditions:
+        items:
+          $ref: '#/definitions/ua_services_card-service_internal_service.RuleCondition'
+        type: array
+      description:
+        type: string
+      keyword:
+        type: string
+      parameters:
+        additionalProperties: true
+        type: object
+    type: object
+  ua_services_card-service_internal_service.PlayRestriction:
+    properties:
+      condition:
+        additionalProperties: true
+        type: object
+      message:
+        type: string
+      type:
+        type: string
+    type: object
+  ua_services_card-service_internal_service.RuleCondition:
+    properties:
+      field:
+        type: string
+      operator:
+        type: string
+      value: {}
+    type: object
+  ua_services_card-service_internal_service.UpdateCardRequest:
+    properties:
+      ap_cost:
+        type: integer
+      bp:
+        type: integer
+      card_type:
+        type: string
+      characteristics:
+        items:
+          type: string
+        type: array
+      color:
+        type: string
+      effect_text:
+        type: string
+      energy_cost:
+        additionalProperties:
+          type: integer
+        type: object
+      energy_produce:
+        additionalProperties:
+          type: integer
+        type: object
+      image_url:
+        type: string
+      keywords:
+        items:
+          type: string
+        type: array
+      name:
+        type: string
+      rarity:
+        type: string
+      trigger_effect:
+        type: string
+      work_code:
+        type: string
+    type: object
+  ua_services_card-service_internal_service.ValidateCardPlayRequest:
+    properties:
+      additional:
+        additionalProperties: true
+        type: object
+      card_id:
+        type: string
+      game_state:
+        $ref: '#/definitions/models.GameState'
+      player_id:
+        type: string
+      position:
+        $ref: '#/definitions/models.Position'
+      target_id:
+        type: string
+    type: object
+  utils.PaginatedResponse:
+    properties:
+      data: {}
+      error:
+        type: string
+      pagination:
+        $ref: '#/definitions/utils.Pagination'
+      success:
+        type: boolean
+    type: object
+  utils.Pagination:
+    properties:
+      limit:
+        type: integer
+      page:
+        type: integer
+      total:
+        type: integer
+      total_pages:
+        type: integer
+    type: object
+  utils.Response:
+    properties:
+      data: {}
+      error:
+        type: string
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
+host: localhost:8001
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: Card management microservice for UA Card Battle Game
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  termsOfService: http://swagger.io/terms/
+  title: UA Card Service API
+  version: "1.0"
+paths:
+  /api/v1/cards:
+    get:
+      description: Get a paginated list of cards with optional filters
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Items per page
+        in: query
+        name: limit
+        type: integer
+      - description: Card type filter
+        in: query
+        name: card_type
+        type: string
+      - description: Work code filter
+        in: query
+        name: work_code
+        type: string
+      - description: Rarity filter
+        in: query
+        name: rarity
+        type: string
+      - description: Characteristics filter (comma-separated)
+        in: query
+        name: characteristics
+        type: string
+      - description: Keywords filter (comma-separated)
+        in: query
+        name: keywords
+        type: string
+      - description: Minimum BP filter
+        in: query
+        name: min_bp
+        type: integer
+      - description: Maximum BP filter
+        in: query
+        name: max_bp
+        type: integer
+      - description: Minimum AP cost filter
+        in: query
+        name: min_ap_cost
+        type: integer
+      - description: Maximum AP cost filter
+        in: query
+        name: max_ap_cost
+        type: integer
+      - description: Search by name
+        in: query
+        name: search_name
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.PaginatedResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.Card'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      summary: List cards
+      tags:
+      - cards
+    post:
+      consumes:
+      - application/json
+      description: Create a new card with the provided details
+      parameters:
+      - description: Card creation request
+        in: body
+        name: card
+        required: true
+        schema:
+          $ref: '#/definitions/ua_services_card-service_internal_service.CreateCardRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Card'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      summary: Create a new card
+      tags:
+      - cards
+  /api/v1/cards/{id}:
+    delete:
+      description: Delete a card by ID
+      parameters:
+      - description: Card ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      summary: Delete card
+      tags:
+      - cards
+    get:
+      description: Get a card by its UUID
+      parameters:
+      - description: Card ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Card'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+      summary: Get card by ID
+      tags:
+      - cards
+    put:
+      consumes:
+      - application/json
+      description: Update an existing card
+      parameters:
+      - description: Card ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Card update request
+        in: body
+        name: card
+        required: true
+        schema:
+          $ref: '#/definitions/ua_services_card-service_internal_service.UpdateCardRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Card'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      summary: Update card
+      tags:
+      - cards
+  /api/v1/cards/{id}/balance:
+    patch:
+      consumes:
+      - application/json
+      description: Apply balance adjustments to a card
+      parameters:
+      - description: Card ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Balance adjustment
+        in: body
+        name: adjustment
+        required: true
+        schema:
+          $ref: '#/definitions/ua_services_card-service_internal_service.CardBalanceAdjustment'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      summary: Balance card
+      tags:
+      - cards
+  /api/v1/cards/{id}/rules:
+    get:
+      description: Get the rules engine data for a specific card
+      parameters:
+      - description: Card ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/ua_services_card-service_internal_service.CardRulesEngine'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+      summary: Get card rules engine
+      tags:
+      - cards
+  /api/v1/cards/number/{number}:
+    get:
+      description: Get a card by its card number (e.g., UA25-001) - returns first
+        variant found
+      parameters:
+      - description: Card Number
+        in: path
+        name: number
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Card'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+      summary: Get card by number
+      tags:
+      - cards
+  /api/v1/cards/rarities:
+    get:
+      description: Get cards filtered by specific rarities
+      parameters:
+      - description: Comma-separated list of rarities
+        in: query
+        name: rarities
+        required: true
+        type: string
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Items per page
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.PaginatedResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.Card'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      summary: Get cards by rarities
+      tags:
+      - cards
+  /api/v1/cards/rarity-tiers:
+    get:
+      description: Get all available rarities with their tier values for sorting
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  additionalProperties:
+                    type: integer
+                  type: object
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      summary: Get rarity tiers
+      tags:
+      - cards
+  /api/v1/cards/search:
+    get:
+      description: Search cards by name
+      parameters:
+      - description: Search query
+        in: query
+        name: q
+        required: true
+        type: string
+      - default: 10
+        description: Maximum results
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.Card'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      summary: Search cards
+      tags:
+      - cards
+  /api/v1/cards/validate-deck:
+    post:
+      consumes:
+      - application/json
+      description: Validate if a deck composition follows the game rules
+      parameters:
+      - description: Deck cards
+        in: body
+        name: deck
+        required: true
+        schema:
+          items:
+            $ref: '#/definitions/models.CardInstance'
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/ua_services_card-service_internal_service.DeckValidationResult'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      summary: Validate deck composition
+      tags:
+      - cards
+  /api/v1/cards/validate-play:
+    post:
+      consumes:
+      - application/json
+      description: Validate if a card can be played in the current game state
+      parameters:
+      - description: Card play validation request
+        in: body
+        name: validation
+        required: true
+        schema:
+          $ref: '#/definitions/ua_services_card-service_internal_service.ValidateCardPlayRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/ua_services_card-service_internal_service.CardPlayValidation'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      summary: Validate card play
+      tags:
+      - cards
+  /api/v1/cards/variant/{variant_id}:
+    get:
+      description: Get a specific card variant by its variant ID (e.g., UA25BT-001-SR★★★)
+      parameters:
+      - description: Card Variant ID
+        in: path
+        name: variant_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Card'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+      summary: Get card by variant ID
+      tags:
+      - cards
+  /api/v1/cards/variants/{number}:
+    get:
+      description: Get all variants (different rarities) of a card by its base card
+        number
+      parameters:
+      - description: Base Card Number
+        in: path
+        name: number
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.Card'
+                  type: array
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+      summary: Get card variants
+      tags:
+      - cards
+  /api/v1/cards/work/{work_code}:
+    get:
+      description: Get cards by work code
+      parameters:
+      - description: Work Code
+        in: path
+        name: work_code
+        required: true
+        type: string
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Items per page
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.PaginatedResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.Card'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      summary: Get cards by work
+      tags:
+      - cards
+schemes:
+- http
+- https
+securityDefinitions:
+  BearerAuth:
+    description: Type "Bearer" followed by a space and JWT token.
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

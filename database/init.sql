@@ -26,21 +26,32 @@ CREATE TABLE users (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Cards table - Master card database
+-- Cards table - Master card database with CardVariantID system
 CREATE TABLE cards (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    card_number VARCHAR(20) UNIQUE NOT NULL, -- UA25-001 format
+    card_number VARCHAR(20) NOT NULL, -- Base card number like "UA25BT-001"  
+    card_variant_id VARCHAR(30) UNIQUE NOT NULL, -- Full variant ID like "UA25BT-001-SR★★★"
     name VARCHAR(100) NOT NULL,
     card_type VARCHAR(20) NOT NULL CHECK (card_type IN ('CHARACTER', 'FIELD', 'EVENT', 'AP')),
-    work_code VARCHAR(3) NOT NULL, -- Work series code (first 3 chars of card_number)
+    color VARCHAR(10) NOT NULL CHECK (color IN ('RED', 'BLUE', 'GREEN', 'PURPLE', 'YELLOW')),
+    work_code VARCHAR(6) NOT NULL, -- Work series code like "UA25BT"
     bp INTEGER CHECK (bp >= 0), -- Battle Points for character cards
     ap_cost INTEGER DEFAULT 0 CHECK (ap_cost >= 0), -- Action Points cost
     energy_cost JSONB DEFAULT '{}', -- Energy requirements {"red": 2, "blue": 1}
     energy_produce JSONB DEFAULT '{}', -- Energy production
-    rarity VARCHAR(15) NOT NULL CHECK (rarity IN ('COMMON', 'UNCOMMON', 'RARE', 'SUPER_RARE', 'SPECIAL')),
+    rarity VARCHAR(10) NOT NULL CHECK (rarity IN (
+        'OBC', 'SP', 'PR', 'UR', 
+        'SR_3', 'SR_2', 'SR_1', 'SR',
+        'R_2', 'R_1', 'R',
+        'U_3', 'U_2', 'U_1', 'U',
+        'C_2', 'C_1', 'C'
+    )),
     characteristics TEXT[] DEFAULT '{}', -- Card traits/characteristics
     effect_text TEXT DEFAULT '', -- Human-readable effect description
-    trigger_effect JSONB DEFAULT '[]', -- Machine-readable effects
+    trigger_effect VARCHAR(50) DEFAULT 'NIL' CHECK (trigger_effect IN (
+        'DRAW_CARD', 'COLOR', 'ACTIVE_BP_3000', 'ADD_TO_HAND', 
+        'RUSH_OR_ADD_TO_HAND', 'SPECIAL', 'FINAL', 'NIL'
+    )),
     keywords TEXT[] DEFAULT '{}', -- Keywords like レイド, 狙い撃ち, etc.
     image_url VARCHAR(500),
     is_banned BOOLEAN DEFAULT false, -- For card balance management
@@ -48,28 +59,34 @@ CREATE TABLE cards (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- User card collections
-CREATE TABLE user_collections (
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    card_id UUID NOT NULL REFERENCES cards(id) ON DELETE CASCADE,
-    quantity INTEGER DEFAULT 0 CHECK (quantity >= 0),
-    obtained_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    PRIMARY KEY (user_id, card_id)
+-- Card instances - represents specific card copies in collections/decks
+CREATE TABLE card_instances (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    card_variant_id VARCHAR(30) NOT NULL, -- References cards.card_variant_id
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE, -- Owner (if in collection)
+    deck_id UUID REFERENCES decks(id) ON DELETE CASCADE, -- Deck (if in deck)
+    quantity INTEGER DEFAULT 1 CHECK (quantity >= 0),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    CONSTRAINT card_variant_exists CHECK (
+        EXISTS (SELECT 1 FROM cards WHERE cards.card_variant_id = card_instances.card_variant_id)
+    )
 );
 
--- User decks
+-- User decks (updated structure)
 CREATE TABLE decks (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     name VARCHAR(100) NOT NULL,
+    description TEXT DEFAULT '',
+    color VARCHAR(10) CHECK (color IN ('RED', 'BLUE', 'GREEN', 'PURPLE', 'YELLOW')), -- Deck color restriction
     is_active BOOLEAN DEFAULT false,
-    cards JSONB NOT NULL DEFAULT '[]', -- Array of {card_id, quantity}
-    total_cards INTEGER GENERATED ALWAYS AS (
-        (SELECT SUM((value->>'quantity')::int) FROM jsonb_array_elements(cards))
-    ) STORED,
+    is_public BOOLEAN DEFAULT false,
+    total_cards INTEGER DEFAULT 0 CHECK (total_cards >= 0),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    CONSTRAINT valid_deck_size CHECK (total_cards >= 40 AND total_cards <= 60)
+    CONSTRAINT valid_deck_size CHECK (total_cards >= 50 AND total_cards <= 50), -- Union Arena uses exactly 50 cards
+    CONSTRAINT one_active_deck_per_user EXCLUDE (user_id WITH =) WHERE (is_active = true)
 );
 
 -- Games table - Game instances
@@ -223,23 +240,29 @@ CREATE INDEX idx_users_last_login ON users(last_login_at DESC) WHERE is_active =
 
 -- Card indexes
 CREATE INDEX idx_cards_number ON cards(card_number);
+CREATE INDEX idx_cards_variant_id ON cards(card_variant_id);
 CREATE INDEX idx_cards_type ON cards(card_type);
+CREATE INDEX idx_cards_color ON cards(color);
 CREATE INDEX idx_cards_work ON cards(work_code);
 CREATE INDEX idx_cards_rarity ON cards(rarity);
 CREATE INDEX idx_cards_keywords ON cards USING gin(keywords);
 CREATE INDEX idx_cards_characteristics ON cards USING gin(characteristics);
 CREATE INDEX idx_cards_bp ON cards(bp) WHERE bp IS NOT NULL;
 CREATE INDEX idx_cards_ap_cost ON cards(ap_cost);
+CREATE INDEX idx_cards_trigger_effect ON cards(trigger_effect);
+CREATE INDEX idx_cards_compound_search ON cards(card_number, rarity); -- For variant searches
 
--- Collection indexes
-CREATE INDEX idx_collections_user ON user_collections(user_id);
-CREATE INDEX idx_collections_card ON user_collections(card_id);
-CREATE INDEX idx_collections_quantity ON user_collections(quantity) WHERE quantity > 0;
+-- Card instances indexes
+CREATE INDEX idx_instances_variant_id ON card_instances(card_variant_id);
+CREATE INDEX idx_instances_user ON card_instances(user_id) WHERE user_id IS NOT NULL;
+CREATE INDEX idx_instances_deck ON card_instances(deck_id) WHERE deck_id IS NOT NULL;
+CREATE INDEX idx_instances_user_quantity ON card_instances(user_id, quantity) WHERE quantity > 0 AND user_id IS NOT NULL;
 
 -- Deck indexes
 CREATE INDEX idx_decks_user ON decks(user_id);
 CREATE INDEX idx_decks_active ON decks(user_id, is_active) WHERE is_active = true;
-CREATE INDEX idx_decks_cards ON decks USING gin(cards);
+CREATE INDEX idx_decks_color ON decks(color) WHERE color IS NOT NULL;
+CREATE INDEX idx_decks_public ON decks(is_public) WHERE is_public = true;
 
 -- Game indexes
 CREATE INDEX idx_games_players ON games(player1_id, player2_id);
@@ -406,23 +429,53 @@ LEFT JOIN game_results gr ON g.id = gr.game_id
 WHERE g.status = 'COMPLETED'
 ORDER BY g.completed_at DESC;
 
--- Popular cards view
+-- Popular cards view (updated for CardVariantID)
 CREATE VIEW popular_cards_view AS
 SELECT 
     c.id,
     c.card_number,
+    c.card_variant_id,
     c.name,
     c.card_type,
+    c.color,
     c.rarity,
+    c.work_code,
     COALESCE(SUM(cus.games_played), 0) as times_used,
     COALESCE(AVG(cus.win_rate), 0) as avg_win_rate,
     COUNT(DISTINCT cus.date) as days_tracked
 FROM cards c
 LEFT JOIN card_usage_stats cus ON c.id = cus.card_id
 WHERE c.is_banned = false
-GROUP BY c.id, c.card_number, c.name, c.card_type, c.rarity
+GROUP BY c.id, c.card_number, c.card_variant_id, c.name, c.card_type, c.color, c.rarity, c.work_code
 HAVING COALESCE(SUM(cus.games_played), 0) > 0
 ORDER BY times_used DESC;
+
+-- Card variants view - shows all variants of each base card
+CREATE VIEW card_variants_view AS
+SELECT 
+    c.card_number,
+    c.name,
+    c.card_type,
+    c.color,
+    c.work_code,
+    COUNT(*) as variant_count,
+    ARRAY_AGG(c.rarity ORDER BY 
+        CASE c.rarity 
+            WHEN 'OBC' THEN 10
+            WHEN 'SP' THEN 9 WHEN 'PR' THEN 9
+            WHEN 'UR' THEN 8
+            WHEN 'SR_3' THEN 7 WHEN 'SR_2' THEN 6 WHEN 'SR_1' THEN 5 WHEN 'SR' THEN 4
+            WHEN 'R_2' THEN 3 WHEN 'R_1' THEN 2 WHEN 'R' THEN 1
+            WHEN 'U_3' THEN 0 WHEN 'U_2' THEN -1 WHEN 'U_1' THEN -2 WHEN 'U' THEN -3
+            WHEN 'C_2' THEN -4 WHEN 'C_1' THEN -5 WHEN 'C' THEN -6
+            ELSE -10
+        END DESC
+    ) as available_rarities,
+    MAX(c.updated_at) as last_updated
+FROM cards c
+WHERE c.is_banned = false
+GROUP BY c.card_number, c.name, c.card_type, c.color, c.work_code
+ORDER BY c.card_number;
 
 -- Insert some sample achievements
 INSERT INTO achievements (name, description, type, condition, reward) VALUES
@@ -438,7 +491,48 @@ INSERT INTO achievements (name, description, type, condition, reward) VALUES
 ('Deck Master', 'Win with 10 different deck compositions', 'SPECIAL', '{"type": "deck_variety", "value": 10}', '{"experience": 300, "deck_slot": 1}');
 
 -- Sample work codes and their themes
-COMMENT ON COLUMN cards.work_code IS 'Work series codes: UA2 (Original), LLG (Love Live), BAN (BanG Dream), IDM (Idolmaster), etc.';
+COMMENT ON COLUMN cards.work_code IS 'Work series codes: UA25BT (25th Booster), UA25ST (25th Starter), etc.';
+COMMENT ON COLUMN cards.card_variant_id IS 'Unique identifier combining card number and rarity (e.g., UA25BT-001-SR★★★)';
+COMMENT ON TABLE card_instances IS 'Represents specific card copies owned by users or used in decks';
+
+-- Add trigger to update deck total_cards when card_instances change
+CREATE OR REPLACE FUNCTION update_deck_card_count()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF TG_OP = 'INSERT' OR TG_OP = 'UPDATE' THEN
+        IF NEW.deck_id IS NOT NULL THEN
+            UPDATE decks SET 
+                total_cards = (
+                    SELECT COALESCE(SUM(quantity), 0) 
+                    FROM card_instances 
+                    WHERE deck_id = NEW.deck_id
+                ),
+                updated_at = NOW()
+            WHERE id = NEW.deck_id;
+        END IF;
+    END IF;
+    
+    IF TG_OP = 'DELETE' OR TG_OP = 'UPDATE' THEN
+        IF OLD.deck_id IS NOT NULL THEN
+            UPDATE decks SET 
+                total_cards = (
+                    SELECT COALESCE(SUM(quantity), 0) 
+                    FROM card_instances 
+                    WHERE deck_id = OLD.deck_id
+                ),
+                updated_at = NOW()
+            WHERE id = OLD.deck_id;
+        END IF;
+    END IF;
+    
+    RETURN COALESCE(NEW, OLD);
+END;
+$$ language 'plpgsql';
+
+CREATE TRIGGER update_deck_card_count_trigger
+    AFTER INSERT OR UPDATE OR DELETE ON card_instances
+    FOR EACH ROW
+    EXECUTE FUNCTION update_deck_card_count();
 
 -- Performance monitoring query examples
 COMMENT ON TABLE daily_stats IS 'Tracks daily game metrics for analytics and monitoring';

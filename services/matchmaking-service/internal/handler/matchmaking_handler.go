@@ -108,7 +108,7 @@ func (h *MatchmakingHandler) LeaveQueue(c *gin.Context) {
 // @Tags matchmaking
 // @Produce json
 // @Param userId path string true "User ID"
-// @Success 200 {object} utils.Response{data=repository.QueueStatus}
+// @Success 200 {object} utils.Response
 // @Failure 400 {object} utils.Response
 // @Failure 404 {object} utils.Response
 // @Failure 500 {object} utils.Response
@@ -152,7 +152,7 @@ func (h *MatchmakingHandler) GetQueueStatus(c *gin.Context) {
 // @Produce json
 // @Param userId path string true "User ID"
 // @Param limit query int false "Maximum number of matches to return" default(10)
-// @Success 200 {object} utils.Response{data=[]repository.MatchHistory}
+// @Success 200 {object} utils.Response
 // @Failure 400 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Security BearerAuth
@@ -191,7 +191,7 @@ func (h *MatchmakingHandler) GetMatchHistory(c *gin.Context) {
 // @Description Get current queue statistics
 // @Tags matchmaking
 // @Produce json
-// @Success 200 {object} utils.Response{data=repository.QueueStats}
+// @Success 200 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/matchmaking/stats [get]
 func (h *MatchmakingHandler) GetQueueStats(c *gin.Context) {

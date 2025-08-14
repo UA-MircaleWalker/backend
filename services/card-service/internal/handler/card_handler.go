@@ -75,7 +75,7 @@ func (h *CardHandler) GetCard(c *gin.Context) {
 }
 
 // @Summary Get card by number
-// @Description Get a card by its card number (e.g., UA25-001)
+// @Description Get a card by its card number (e.g., UA25-001) - returns first variant found
 // @Tags cards
 // @Produce json
 // @Param number path string true "Card Number"
@@ -92,6 +92,46 @@ func (h *CardHandler) GetCardByNumber(c *gin.Context) {
 	}
 
 	utils.SuccessResponse(c, card)
+}
+
+// @Summary Get card by variant ID
+// @Description Get a specific card variant by its variant ID (e.g., UA25BT-001-SR★★★)
+// @Tags cards
+// @Produce json
+// @Param variant_id path string true "Card Variant ID"
+// @Success 200 {object} utils.Response{data=models.Card}
+// @Failure 404 {object} utils.Response
+// @Router /api/v1/cards/variant/{variant_id} [get]
+func (h *CardHandler) GetCardByVariantID(c *gin.Context) {
+	cardVariantID := c.Param("variant_id")
+
+	card, err := h.cardService.GetCardByVariantID(c.Request.Context(), cardVariantID)
+	if err != nil {
+		utils.NotFoundResponse(c, "Card variant not found")
+		return
+	}
+
+	utils.SuccessResponse(c, card)
+}
+
+// @Summary Get card variants
+// @Description Get all variants (different rarities) of a card by its base card number
+// @Tags cards
+// @Produce json
+// @Param number path string true "Base Card Number"
+// @Success 200 {object} utils.Response{data=[]models.Card}
+// @Failure 404 {object} utils.Response
+// @Router /api/v1/cards/variants/{number} [get]
+func (h *CardHandler) GetCardVariants(c *gin.Context) {
+	cardNumber := c.Param("number")
+
+	variants, err := h.cardService.GetCardVariants(c.Request.Context(), cardNumber)
+	if err != nil {
+		utils.NotFoundResponse(c, "Card variants not found")
+		return
+	}
+
+	utils.SuccessResponse(c, variants)
 }
 
 // @Summary List cards
@@ -294,13 +334,13 @@ func (h *CardHandler) GetCardsByWork(c *gin.Context) {
 // @Tags cards
 // @Accept json
 // @Produce json
-// @Param deck body []models.DeckCard true "Deck cards"
+// @Param deck body []models.CardInstance true "Deck cards"
 // @Success 200 {object} utils.Response{data=service.DeckValidationResult}
 // @Failure 400 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/cards/validate-deck [post]
 func (h *CardHandler) ValidateDeck(c *gin.Context) {
-	var deckCards []models.DeckCard
+	var deckCards []models.CardInstance
 	if err := c.ShouldBindJSON(&deckCards); err != nil {
 		utils.BadRequestResponse(c, "Invalid request body: "+err.Error())
 		return
@@ -404,6 +444,60 @@ func (h *CardHandler) BalanceCard(c *gin.Context) {
 	}
 
 	utils.SuccessWithMessageResponse(c, nil, "Card balanced successfully")
+}
+
+// @Summary Get cards by rarities
+// @Description Get cards filtered by specific rarities
+// @Tags cards
+// @Produce json
+// @Param rarities query string true "Comma-separated list of rarities"
+// @Param page query int false "Page number" default(1)
+// @Param limit query int false "Items per page" default(20)
+// @Success 200 {object} utils.PaginatedResponse{data=[]models.Card}
+// @Failure 400 {object} utils.Response
+// @Failure 500 {object} utils.Response
+// @Router /api/v1/cards/rarities [get]
+func (h *CardHandler) GetCardsByRarity(c *gin.Context) {
+	raritiesStr := c.Query("rarities")
+	if raritiesStr == "" {
+		utils.BadRequestResponse(c, "Rarities parameter is required")
+		return
+	}
+
+	rarities := parseCommaSeparated(raritiesStr)
+	if len(rarities) == 0 {
+		utils.BadRequestResponse(c, "At least one rarity must be specified")
+		return
+	}
+
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+
+	cards, total, err := h.cardService.GetCardsByRarity(c.Request.Context(), rarities, page, limit)
+	if err != nil {
+		utils.InternalServerErrorResponse(c, "Failed to get cards by rarity: "+err.Error())
+		return
+	}
+
+	pagination := utils.CalculatePagination(page, limit, total)
+	utils.PaginatedSuccessResponse(c, cards, pagination)
+}
+
+// @Summary Get rarity tiers
+// @Description Get all available rarities with their tier values for sorting
+// @Tags cards
+// @Produce json
+// @Success 200 {object} utils.Response{data=map[string]int}
+// @Failure 500 {object} utils.Response
+// @Router /api/v1/cards/rarity-tiers [get]
+func (h *CardHandler) GetRarityTiers(c *gin.Context) {
+	tiers, err := h.cardService.GetRarityTiers(c.Request.Context())
+	if err != nil {
+		utils.InternalServerErrorResponse(c, "Failed to get rarity tiers: "+err.Error())
+		return
+	}
+
+	utils.SuccessResponse(c, tiers)
 }
 
 func parseCommaSeparated(s string) []string {
