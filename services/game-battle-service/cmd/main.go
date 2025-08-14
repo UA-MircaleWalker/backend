@@ -122,22 +122,25 @@ func setupRouter(cfg *config.Config, gameHandler *handler.GameHandler) *gin.Engi
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	api := r.Group("/api/v1")
+	
+	// Public endpoints (no auth required)
+	api.POST("/games", gameHandler.CreateGame)
+	
+	// Public info endpoint - separate path to avoid conflicts
+	api.GET("/game-info/:gameId", gameHandler.GetGameInfo)
+	
+	logger.Info("Registered game info route at /api/v1/game-info/:gameId")
+	
+	// Protected endpoints with auth middleware
+	authGames := api.Group("/games")
+	authGames.Use(middleware.AuthMiddleware(cfg.JWTSecret))
 	{
-		// Public endpoints (no auth required)
-		api.POST("/games", gameHandler.CreateGame)
-		
-		// Protected endpoints (auth required)
-		games := api.Group("/games")
-		games.Use(middleware.AuthMiddleware(cfg.JWTSecret))
-		{
-			games.GET("/active", gameHandler.GetActiveGames)
-			games.GET("/:gameId", gameHandler.GetGame)
-			games.POST("/:gameId/join", gameHandler.JoinGame)
-			games.POST("/:gameId/start", gameHandler.StartGame)
-			games.POST("/:gameId/mulligan", gameHandler.PerformMulligan)
-			games.POST("/:gameId/actions", gameHandler.PlayAction)
-			games.POST("/:gameId/surrender", gameHandler.SurrenderGame)
-		}
+		authGames.GET("/active", gameHandler.GetActiveGames)
+		authGames.GET("/:gameId", gameHandler.GetGame)
+		authGames.POST("/:gameId/join", gameHandler.JoinGame)
+		authGames.POST("/:gameId/mulligan", gameHandler.PerformMulligan)
+		authGames.POST("/:gameId/actions", gameHandler.PlayAction)
+		authGames.POST("/:gameId/surrender", gameHandler.SurrenderGame)
 	}
 
 	return r

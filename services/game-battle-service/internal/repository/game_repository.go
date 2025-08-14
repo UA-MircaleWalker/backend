@@ -12,6 +12,11 @@ import (
 	"ua/shared/redis"
 )
 
+type PlayerJoinStatus struct {
+	Player1Joined bool
+	Player2Joined bool
+}
+
 type GameRepository interface {
 	CreateGame(ctx context.Context, game *models.Game) error
 	GetGame(ctx context.Context, gameID uuid.UUID) (*models.Game, error)
@@ -24,6 +29,12 @@ type GameRepository interface {
 	GetActiveGames(ctx context.Context, playerID uuid.UUID) ([]*models.Game, error)
 	SetGameWinner(ctx context.Context, gameID uuid.UUID, winner uuid.UUID, reason string) error
 	GetGamesByStatus(ctx context.Context, status models.GameStatus, limit int) ([]*models.Game, error)
+	// Player join status management
+	SetPlayerJoined(ctx context.Context, gameID uuid.UUID, playerID uuid.UUID) error
+	GetPlayerJoinStatus(ctx context.Context, gameID uuid.UUID) (*PlayerJoinStatus, error)
+	// Redis 相關查詢方法
+	GetGameStatusFromRedis(ctx context.Context, gameID uuid.UUID) (models.GameStatus, error)
+	GetGameInfoFromRedis(ctx context.Context, gameID uuid.UUID) (map[string]interface{}, error)
 }
 
 type gameRepository struct {
@@ -53,11 +64,43 @@ func (r *gameRepository) CreateGame(ctx context.Context, game *models.Game) erro
 		return fmt.Errorf("failed to create game: %w", err)
 	}
 
-	// Cache the game state JSON directly (it's already marshaled)
+	// 緩存遊戲狀態到 Redis
 	gameStateKey := fmt.Sprintf("game:%s:state", game.ID.String())
 	if err := r.redis.Set(ctx, gameStateKey, string(game.GameState), 24*time.Hour).Err(); err != nil {
 		return fmt.Errorf("failed to cache game state: %w", err)
 	}
+
+
+	// 緩存遊戲基本信息到 Redis (使用 Hash 格式)
+	gameInfoKey := fmt.Sprintf("game:%s:info", game.ID.String())
+	gameInfoFields := map[string]interface{}{
+		"id":             game.ID.String(),
+		"player1_id":     game.Player1ID.String(),
+		"player2_id":     game.Player2ID.String(),
+		"status":         string(game.Status),
+		"current_turn":   game.CurrentTurn,
+		"phase":          game.Phase.String(),
+		"active_player":  game.ActivePlayer.String(),
+		"player1_joined": false,
+		"player2_joined": false,
+		"created_at":     game.CreatedAt.Format(time.RFC3339),
+		"updated_at":     game.UpdatedAt.Format(time.RFC3339),
+	}
+	
+	if game.StartedAt != nil {
+		gameInfoFields["started_at"] = game.StartedAt.Format(time.RFC3339)
+	}
+	if game.CompletedAt != nil {
+		gameInfoFields["completed_at"] = game.CompletedAt.Format(time.RFC3339)
+	}
+	if game.Winner != nil {
+		gameInfoFields["winner"] = game.Winner.String()
+	}
+
+	if err := r.redis.HMSet(ctx, gameInfoKey, gameInfoFields).Err(); err != nil {
+		return fmt.Errorf("failed to cache game info: %w", err)
+	}
+	r.redis.Expire(ctx, gameInfoKey, 24*time.Hour)
 
 	return nil
 }
@@ -109,10 +152,49 @@ func (r *gameRepository) UpdateGame(ctx context.Context, game *models.Game) erro
 		return fmt.Errorf("failed to update game: %w", err)
 	}
 
+	// 更新 Redis 中的遊戲狀態
 	gameStateKey := fmt.Sprintf("game:%s:state", game.ID.String())
 	if err := r.redis.Set(ctx, gameStateKey, string(game.GameState), 24*time.Hour).Err(); err != nil {
 		return fmt.Errorf("failed to update cached game state: %w", err)
 	}
+
+
+	// 更新 Redis 中的遊戲基本信息 (使用 Hash 格式)
+	gameInfoKey := fmt.Sprintf("game:%s:info", game.ID.String())
+	
+	// 先獲取現有的 join 狀態，避免覆蓋
+	existingInfo, _ := r.redis.HGetAll(ctx, gameInfoKey).Result()
+	
+	gameInfoFields := map[string]interface{}{
+		"status":        string(game.Status),
+		"current_turn":  game.CurrentTurn,
+		"phase":         game.Phase.String(),
+		"active_player": game.ActivePlayer.String(),
+		"updated_at":    game.UpdatedAt.Format(time.RFC3339),
+	}
+	
+	// 保持現有的 join 狀態
+	if player1Joined, exists := existingInfo["player1_joined"]; exists {
+		gameInfoFields["player1_joined"] = player1Joined
+	}
+	if player2Joined, exists := existingInfo["player2_joined"]; exists {
+		gameInfoFields["player2_joined"] = player2Joined
+	}
+	
+	if game.StartedAt != nil {
+		gameInfoFields["started_at"] = game.StartedAt.Format(time.RFC3339)
+	}
+	if game.CompletedAt != nil {
+		gameInfoFields["completed_at"] = game.CompletedAt.Format(time.RFC3339)
+	}
+	if game.Winner != nil {
+		gameInfoFields["winner"] = game.Winner.String()
+	}
+
+	if err := r.redis.HMSet(ctx, gameInfoKey, gameInfoFields).Err(); err != nil {
+		return fmt.Errorf("failed to update game info in Redis: %w", err)
+	}
+	r.redis.Expire(ctx, gameInfoKey, 24*time.Hour)
 
 	return nil
 }
@@ -252,6 +334,13 @@ func (r *gameRepository) UpdateGameStatus(ctx context.Context, gameID uuid.UUID,
 		return fmt.Errorf("failed to update game status: %w", err)
 	}
 
+	// 更新 Redis 中 game info 的狀態
+	gameInfoKey := fmt.Sprintf("game:%s:info", gameID.String())
+	if err := r.redis.HSet(ctx, gameInfoKey, "status", string(status), "updated_at", time.Now()).Err(); err != nil {
+		return fmt.Errorf("failed to update game status in Redis info: %w", err)
+	}
+	r.redis.Expire(ctx, gameInfoKey, 24*time.Hour)
+
 	return nil
 }
 
@@ -354,4 +443,93 @@ func (r *gameRepository) GetGamesByStatus(ctx context.Context, status models.Gam
 	}
 
 	return games, nil
+}
+
+// GetGameStatusFromRedis 從 Redis game info 獲取遊戲狀態
+func (r *gameRepository) GetGameStatusFromRedis(ctx context.Context, gameID uuid.UUID) (models.GameStatus, error) {
+	gameInfoKey := fmt.Sprintf("game:%s:info", gameID.String())
+	statusStr, err := r.redis.HGet(ctx, gameInfoKey, "status").Result()
+	if err != nil {
+		return "", fmt.Errorf("failed to get game status from Redis info: %w", err)
+	}
+	return models.GameStatus(statusStr), nil
+}
+
+// SetPlayerJoined 設置玩家已 join 的狀態
+func (r *gameRepository) SetPlayerJoined(ctx context.Context, gameID uuid.UUID, playerID uuid.UUID) error {
+	gameInfoKey := fmt.Sprintf("game:%s:info", gameID.String())
+
+	// 先獲取遊戲資訊來確定是 player1 還是 player2
+	gameInfo, err := r.redis.HGetAll(ctx, gameInfoKey).Result()
+	if err != nil {
+		return fmt.Errorf("failed to get game info from Redis: %w", err)
+	}
+
+	if len(gameInfo) == 0 {
+		return fmt.Errorf("game info not found in Redis")
+	}
+
+	var fieldName string
+	if gameInfo["player1_id"] == playerID.String() {
+		fieldName = "player1_joined"
+	} else if gameInfo["player2_id"] == playerID.String() {
+		fieldName = "player2_joined"
+	} else {
+		return fmt.Errorf("player not part of this game")
+	}
+
+	// 設置玩家 join 狀態
+	if err := r.redis.HSet(ctx, gameInfoKey, fieldName, true).Err(); err != nil {
+		return fmt.Errorf("failed to set player joined status: %w", err)
+	}
+
+	// 更新 updated_at
+	if err := r.redis.HSet(ctx, gameInfoKey, "updated_at", time.Now().Format(time.RFC3339)).Err(); err != nil {
+		return fmt.Errorf("failed to update timestamp: %w", err)
+	}
+
+	r.redis.Expire(ctx, gameInfoKey, 24*time.Hour)
+
+	return nil
+}
+
+// GetPlayerJoinStatus 獲取玩家 join 狀態
+func (r *gameRepository) GetPlayerJoinStatus(ctx context.Context, gameID uuid.UUID) (*PlayerJoinStatus, error) {
+	gameInfoKey := fmt.Sprintf("game:%s:info", gameID.String())
+
+	player1JoinedStr, err := r.redis.HGet(ctx, gameInfoKey, "player1_joined").Result()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get player1 join status: %w", err)
+	}
+
+	player2JoinedStr, err := r.redis.HGet(ctx, gameInfoKey, "player2_joined").Result()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get player2 join status: %w", err)
+	}
+
+	return &PlayerJoinStatus{
+		Player1Joined: player1JoinedStr == "true" || player1JoinedStr == "1",
+		Player2Joined: player2JoinedStr == "true" || player2JoinedStr == "1",
+	}, nil
+}
+
+// GetGameInfoFromRedis 從 Redis 獲取遊戲基本信息 (Hash 格式)
+func (r *gameRepository) GetGameInfoFromRedis(ctx context.Context, gameID uuid.UUID) (map[string]interface{}, error) {
+	gameInfoKey := fmt.Sprintf("game:%s:info", gameID.String())
+	gameInfo, err := r.redis.HGetAll(ctx, gameInfoKey).Result()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get game info from Redis: %w", err)
+	}
+
+	if len(gameInfo) == 0 {
+		return nil, fmt.Errorf("game info not found in Redis")
+	}
+
+	// 轉換 map[string]string 為 map[string]interface{}
+	result := make(map[string]interface{})
+	for key, value := range gameInfo {
+		result[key] = value
+	}
+
+	return result, nil
 }

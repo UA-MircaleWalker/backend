@@ -6,21 +6,22 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/uuid"
-	"go.uber.org/zap"
 	"ua/services/game-battle-service/internal/engine"
 	"ua/services/game-battle-service/internal/repository"
 	"ua/shared/logger"
 	"ua/shared/models"
+
+	"github.com/google/uuid"
+	"go.uber.org/zap"
 )
 
 type GameService interface {
 	CreateGame(ctx context.Context, req *CreateGameRequest) (*GameResponse, error)
 	JoinGame(ctx context.Context, gameID uuid.UUID, playerID uuid.UUID) (*GameResponse, error)
-	StartGame(ctx context.Context, gameID uuid.UUID) (*GameResponse, error)
 	PerformMulligan(ctx context.Context, req *MulliganRequest) (*GameResponse, error)
 	PlayAction(ctx context.Context, req *PlayActionRequest) (*ActionResponse, error)
 	GetGame(ctx context.Context, gameID uuid.UUID, playerID uuid.UUID) (*GameResponse, error)
+	GetGameInfo(ctx context.Context, gameID uuid.UUID) (map[string]interface{}, error)
 	GetActiveGames(ctx context.Context, playerID uuid.UUID) (*ActiveGamesResponse, error)
 	SurrenderGame(ctx context.Context, gameID uuid.UUID, playerID uuid.UUID) (*GameResponse, error)
 	ProcessGameEngine(ctx context.Context, gameID uuid.UUID) error
@@ -44,7 +45,7 @@ type PlayActionRequest struct {
 	GameID     uuid.UUID `json:"game_id" binding:"required"`
 	PlayerID   uuid.UUID `json:"player_id" binding:"required"`
 	ActionType string    `json:"action_type" binding:"required"`
-	ActionData []byte    `json:"action_data,omitempty"`
+	ActionData []int     `json:"action_data,omitempty"`
 }
 
 type GameResponse struct {
@@ -67,18 +68,18 @@ type ActiveGamesResponse struct {
 }
 
 type GameInfo struct {
-	ID           uuid.UUID          `json:"id"`
-	Player1ID    uuid.UUID          `json:"player1_id"`
-	Player2ID    uuid.UUID          `json:"player2_id"`
-	Status       models.GameStatus  `json:"status"`
-	CurrentTurn  int                `json:"current_turn"`
-	Phase        models.Phase       `json:"phase"`
-	ActivePlayer uuid.UUID          `json:"active_player"`
-	Winner       *uuid.UUID         `json:"winner,omitempty"`
-	StartedAt    *time.Time         `json:"started_at,omitempty"`
-	CompletedAt  *time.Time         `json:"completed_at,omitempty"`
-	CreatedAt    time.Time          `json:"created_at"`
-	UpdatedAt    time.Time          `json:"updated_at"`
+	ID           uuid.UUID         `json:"id"`
+	Player1ID    uuid.UUID         `json:"player1_id"`
+	Player2ID    uuid.UUID         `json:"player2_id"`
+	Status       models.GameStatus `json:"status"`
+	CurrentTurn  int               `json:"current_turn"`
+	Phase        models.Phase      `json:"phase"`
+	ActivePlayer uuid.UUID         `json:"active_player"`
+	Winner       *uuid.UUID        `json:"winner,omitempty"`
+	StartedAt    *time.Time        `json:"started_at,omitempty"`
+	CompletedAt  *time.Time        `json:"completed_at,omitempty"`
+	CreatedAt    time.Time         `json:"created_at"`
+	UpdatedAt    time.Time         `json:"updated_at"`
 }
 
 type EffectResult struct {
@@ -183,61 +184,55 @@ func (s *gameService) JoinGame(ctx context.Context, gameID uuid.UUID, playerID u
 		return nil, fmt.Errorf("player not part of this game")
 	}
 
-	// Update game status to in progress if both players are ready
-	game.Status = models.GameStatusInProgress
-	startTime := time.Now()
-	game.StartedAt = &startTime
-	game.UpdatedAt = time.Now()
-
-	if err := s.gameRepo.UpdateGame(ctx, game); err != nil {
-		return nil, fmt.Errorf("failed to update game: %w", err)
+	// 記錄玩家已 join
+	if err := s.gameRepo.SetPlayerJoined(ctx, gameID, playerID); err != nil {
+		return nil, fmt.Errorf("failed to record player join: %w", err)
 	}
 
-	gameInfo := s.modelToGameInfo(game)
-
-	logger.Info("Player joined game",
-		zap.String("game_id", gameID.String()),
-		zap.String("player_id", playerID.String()))
-
-	// Deserialize game state
-	var gameState *models.GameState
-	if len(game.GameState) > 0 {
-		gameState = &models.GameState{}
-		if err := json.Unmarshal(game.GameState, gameState); err != nil {
-			logger.Error("Failed to deserialize game state", zap.Error(err))
-		}
-	}
-
-	return &GameResponse{
-		Game:      gameInfo,
-		GameState: gameState,
-		Message:   "Successfully joined game",
-	}, nil
-}
-
-func (s *gameService) StartGame(ctx context.Context, gameID uuid.UUID) (*GameResponse, error) {
-	game, err := s.gameRepo.GetGame(ctx, gameID)
+	// 檢查是否雙方玩家都已 join
+	joinStatus, err := s.gameRepo.GetPlayerJoinStatus(ctx, gameID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get game: %w", err)
+		return nil, fmt.Errorf("failed to get player join status: %w", err)
 	}
 
-	if game.Status != models.GameStatusWaiting {
-		return nil, fmt.Errorf("game is not in waiting status")
-	}
+	var message string
+	// 只有當雙方玩家都 join 時才開始遊戲
+	if joinStatus.Player1Joined && joinStatus.Player2Joined {
+		game.Status = models.GameStatusInProgress
+		startTime := time.Now()
+		game.StartedAt = &startTime
+		game.UpdatedAt = time.Now()
 
-	game.Status = models.GameStatusInProgress
-	startTime := time.Now()
-	game.StartedAt = &startTime
-	game.UpdatedAt = time.Now()
+		if err := s.gameRepo.UpdateGame(ctx, game); err != nil {
+			return nil, fmt.Errorf("failed to update game: %w", err)
+		}
 
-	if err := s.gameRepo.UpdateGame(ctx, game); err != nil {
-		return nil, fmt.Errorf("failed to start game: %w", err)
+		message = "Both players joined - Game started!"
+		logger.Info("Both players joined, game started",
+			zap.String("game_id", gameID.String()),
+			zap.String("player1_id", game.Player1ID.String()),
+			zap.String("player2_id", game.Player2ID.String()))
+	} else {
+		// 更新遊戲資訊但保持 WAITING 狀態
+		game.UpdatedAt = time.Now()
+		if err := s.gameRepo.UpdateGame(ctx, game); err != nil {
+			return nil, fmt.Errorf("failed to update game: %w", err)
+		}
+
+		if playerID == game.Player1ID {
+			message = "Player 1 joined - Waiting for Player 2"
+		} else {
+			message = "Player 2 joined - Waiting for Player 1"
+		}
+
+		logger.Info("Player joined game",
+			zap.String("game_id", gameID.String()),
+			zap.String("player_id", playerID.String()),
+			zap.Bool("player1_joined", joinStatus.Player1Joined),
+			zap.Bool("player2_joined", joinStatus.Player2Joined))
 	}
 
 	gameInfo := s.modelToGameInfo(game)
-
-	logger.Info("Game started",
-		zap.String("game_id", gameID.String()))
 
 	// Deserialize game state
 	var gameState *models.GameState
@@ -251,19 +246,29 @@ func (s *gameService) StartGame(ctx context.Context, gameID uuid.UUID) (*GameRes
 	return &GameResponse{
 		Game:      gameInfo,
 		GameState: gameState,
-		Message:   "Game started",
+		Message:   message,
 	}, nil
 }
+
 
 func (s *gameService) PlayAction(ctx context.Context, req *PlayActionRequest) (*ActionResponse, error) {
+	// Convert ActionData from []int to []byte
+	var actionDataBytes []byte
+	if len(req.ActionData) > 0 {
+		actionDataBytes = make([]byte, len(req.ActionData))
+		for i, v := range req.ActionData {
+			actionDataBytes[i] = byte(v)
+		}
+	}
+
 	// Create game action
 	action := &models.GameAction{
 		ID:         uuid.New(),
 		GameID:     req.GameID,
 		PlayerID:   req.PlayerID,
 		ActionType: req.ActionType,
-		ActionData: req.ActionData,
-		Turn:       0, // Will be set by engine
+		ActionData: actionDataBytes,
+		Turn:       0,                 // Will be set by engine
 		Phase:      models.StartPhase, // Will be set by engine
 		Timestamp:  time.Now(),
 		IsValid:    false,
@@ -357,6 +362,15 @@ func (s *gameService) GetGame(ctx context.Context, gameID uuid.UUID, playerID uu
 		Game:      gameInfo,
 		GameState: gameState,
 	}, nil
+}
+
+func (s *gameService) GetGameInfo(ctx context.Context, gameID uuid.UUID) (map[string]interface{}, error) {
+	gameInfo, err := s.gameRepo.GetGameInfoFromRedis(ctx, gameID)
+	if err != nil {
+		return nil, err
+	}
+
+	return gameInfo, nil
 }
 
 func (s *gameService) GetActiveGames(ctx context.Context, playerID uuid.UUID) (*ActiveGamesResponse, error) {
@@ -476,7 +490,7 @@ func (s *gameService) PerformMulligan(ctx context.Context, req *MulliganRequest)
 func (s *gameService) ProcessGameEngine(ctx context.Context, gameID uuid.UUID) error {
 	// This method can be called periodically to process game logic
 	// such as turn timers, automatic actions, etc.
-	
+
 	game, err := s.gameRepo.GetGame(ctx, gameID)
 	if err != nil {
 		return fmt.Errorf("failed to get game: %w", err)

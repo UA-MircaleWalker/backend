@@ -50,13 +50,14 @@ func (h *GameHandler) CreateGame(c *gin.Context) {
 // @Tags games
 // @Produce json
 // @Param gameId path string true "Game ID"
+// @Param Authorization header string false "Bearer token (optional, can use global auth instead)"
 // @Success 200 {object} utils.Response{data=service.GameResponse}
 // @Failure 400 {object} utils.Response
 // @Failure 403 {object} utils.Response
 // @Failure 404 {object} utils.Response
 // @Failure 500 {object} utils.Response
-// @Security BearerAuth
 // @Router /games/{gameId}/join [post]
+// @Security BearerAuth
 func (h *GameHandler) JoinGame(c *gin.Context) {
 	gameIDStr := c.Param("gameId")
 	gameID, err := uuid.Parse(gameIDStr)
@@ -94,37 +95,6 @@ func (h *GameHandler) JoinGame(c *gin.Context) {
 	utils.SuccessResponse(c, response)
 }
 
-// @Summary Start a game
-// @Description Start a game that is waiting for players
-// @Tags games
-// @Produce json
-// @Param gameId path string true "Game ID"
-// @Success 200 {object} utils.Response{data=service.GameResponse}
-// @Failure 400 {object} utils.Response
-// @Failure 404 {object} utils.Response
-// @Failure 500 {object} utils.Response
-// @Security BearerAuth
-// @Router /games/{gameId}/start [post]
-func (h *GameHandler) StartGame(c *gin.Context) {
-	gameIDStr := c.Param("gameId")
-	gameID, err := uuid.Parse(gameIDStr)
-	if err != nil {
-		utils.BadRequestResponse(c, "Invalid game ID")
-		return
-	}
-
-	response, err := h.gameService.StartGame(c.Request.Context(), gameID)
-	if err != nil {
-		if err.Error() == "game is not in waiting status" {
-			utils.BadRequestResponse(c, err.Error())
-			return
-		}
-		utils.InternalServerErrorResponse(c, "Failed to start game: "+err.Error())
-		return
-	}
-
-	utils.SuccessResponse(c, response)
-}
 
 // @Summary Perform mulligan
 // @Description Player decides whether to mulligan their hand
@@ -133,13 +103,14 @@ func (h *GameHandler) StartGame(c *gin.Context) {
 // @Produce json
 // @Param gameId path string true "Game ID"
 // @Param mulligan body MulliganRequest true "Mulligan decision"
+// @Param Authorization header string false "Bearer token (optional, can use global auth instead)"
 // @Success 200 {object} utils.Response{data=service.GameResponse}
 // @Failure 400 {object} utils.Response
 // @Failure 403 {object} utils.Response
 // @Failure 404 {object} utils.Response
 // @Failure 500 {object} utils.Response
-// @Security BearerAuth
 // @Router /games/{gameId}/mulligan [post]
+// @Security BearerAuth
 func (h *GameHandler) PerformMulligan(c *gin.Context) {
 	gameIDStr := c.Param("gameId")
 	gameID, err := uuid.Parse(gameIDStr)
@@ -192,13 +163,14 @@ func (h *GameHandler) PerformMulligan(c *gin.Context) {
 // @Produce json
 // @Param gameId path string true "Game ID"
 // @Param action body ActionRequest true "Action data"
+// @Param Authorization header string false "Bearer token (optional, can use global auth instead)"
 // @Success 200 {object} utils.Response{data=service.ActionResponse}
 // @Failure 400 {object} utils.Response
 // @Failure 403 {object} utils.Response
 // @Failure 404 {object} utils.Response
 // @Failure 500 {object} utils.Response
-// @Security BearerAuth
 // @Router /games/{gameId}/actions [post]
+// @Security BearerAuth
 func (h *GameHandler) PlayAction(c *gin.Context) {
 	gameIDStr := c.Param("gameId")
 	gameID, err := uuid.Parse(gameIDStr)
@@ -246,13 +218,14 @@ func (h *GameHandler) PlayAction(c *gin.Context) {
 // @Tags games
 // @Produce json
 // @Param gameId path string true "Game ID"
+// @Param Authorization header string false "Bearer token (optional, can use global auth instead)"
 // @Success 200 {object} utils.Response{data=service.GameResponse}
 // @Failure 400 {object} utils.Response
 // @Failure 403 {object} utils.Response
 // @Failure 404 {object} utils.Response
 // @Failure 500 {object} utils.Response
-// @Security BearerAuth
 // @Router /games/{gameId} [get]
+// @Security BearerAuth
 func (h *GameHandler) GetGame(c *gin.Context) {
 	gameIDStr := c.Param("gameId")
 	gameID, err := uuid.Parse(gameIDStr)
@@ -286,14 +259,46 @@ func (h *GameHandler) GetGame(c *gin.Context) {
 	utils.SuccessResponse(c, response)
 }
 
+// @Summary Get game info from Redis
+// @Description Get game information including join status from Redis
+// @Tags games
+// @Produce json
+// @Param gameId path string true "Game ID"
+// @Success 200 {object} utils.Response{data=map[string]interface{}}
+// @Failure 400 {object} utils.Response
+// @Failure 404 {object} utils.Response
+// @Failure 500 {object} utils.Response
+// @Router /game-info/{gameId} [get]
+func (h *GameHandler) GetGameInfo(c *gin.Context) {
+	gameIDStr := c.Param("gameId")
+	gameID, err := uuid.Parse(gameIDStr)
+	if err != nil {
+		utils.BadRequestResponse(c, "Invalid game ID")
+		return
+	}
+
+	gameInfo, err := h.gameService.GetGameInfo(c.Request.Context(), gameID)
+	if err != nil {
+		if err.Error() == "game info not found in Redis" {
+			utils.NotFoundResponse(c, "Game not found")
+			return
+		}
+		utils.InternalServerErrorResponse(c, "Failed to get game info: "+err.Error())
+		return
+	}
+
+	utils.SuccessResponse(c, gameInfo)
+}
+
 // @Summary Get active games
 // @Description Get all active games for the current player
 // @Tags games
 // @Produce json
+// @Param Authorization header string false "Bearer token (optional, can use global auth instead)"
 // @Success 200 {object} utils.Response{data=service.ActiveGamesResponse}
 // @Failure 500 {object} utils.Response
-// @Security BearerAuth
 // @Router /games/active [get]
+// @Security BearerAuth
 func (h *GameHandler) GetActiveGames(c *gin.Context) {
 	playerIDInterface, exists := c.Get("user_id")
 	if !exists {
@@ -321,13 +326,14 @@ func (h *GameHandler) GetActiveGames(c *gin.Context) {
 // @Tags games
 // @Produce json
 // @Param gameId path string true "Game ID"
+// @Param Authorization header string false "Bearer token (optional, can use global auth instead)"
 // @Success 200 {object} utils.Response{data=service.GameResponse}
 // @Failure 400 {object} utils.Response
 // @Failure 403 {object} utils.Response
 // @Failure 404 {object} utils.Response
 // @Failure 500 {object} utils.Response
-// @Security BearerAuth
 // @Router /games/{gameId}/surrender [post]
+// @Security BearerAuth
 func (h *GameHandler) SurrenderGame(c *gin.Context) {
 	gameIDStr := c.Param("gameId")
 	gameID, err := uuid.Parse(gameIDStr)
@@ -367,7 +373,7 @@ func (h *GameHandler) SurrenderGame(c *gin.Context) {
 
 type ActionRequest struct {
 	ActionType string `json:"action_type" binding:"required"`
-	ActionData []byte `json:"action_data,omitempty"`
+	ActionData []int  `json:"action_data,omitempty"`
 }
 
 type MulliganRequest struct {

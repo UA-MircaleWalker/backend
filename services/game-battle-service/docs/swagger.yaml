@@ -18,15 +18,25 @@ definitions:
     type: object
   models.Board:
     properties:
-      character_zones:
-        items:
-          items:
-            $ref: '#/definitions/models.CardInPlay'
-          type: array
-        type: array
-      field_zone:
+      energy_line:
+        description: 能源線：最多4張角色卡和場域卡
         items:
           $ref: '#/definitions/models.CardInPlay'
+        type: array
+      front_line:
+        description: 玩家場地區域（每個玩家都有自己的這些區域）
+        items:
+          $ref: '#/definitions/models.CardInPlay'
+        type: array
+      outside_area:
+        description: 場外區：退場的卡片
+        items:
+          $ref: '#/definitions/models.Card'
+        type: array
+      remove_area:
+        description: 移除區：被移除的卡片
+        items:
+          $ref: '#/definitions/models.Card'
         type: array
     type: object
   models.Card:
@@ -120,12 +130,19 @@ definitions:
   models.CardStatus:
     properties:
       can_act:
+        description: 是否可以行動（綜合判定）
         type: boolean
       can_attack:
+        description: 是否可以攻擊
         type: boolean
       can_block:
+        description: 是否可以防禦
         type: boolean
-      is_exhausted:
+      is_active:
+        description: 活動狀態：直向放置，可以攻擊和防禦
+        type: boolean
+      is_rested:
+        description: 休息狀態：橫向放置，剛登場、攻擊或防禦後的狀態
         type: boolean
     type: object
   models.GameAction:
@@ -161,8 +178,6 @@ definitions:
         type: array
       active_player:
         type: string
-      board:
-        $ref: '#/definitions/models.Board'
       first_player:
         description: 先攻玩家ID
         type: string
@@ -212,48 +227,47 @@ definitions:
   models.Player:
     properties:
       ap:
+        description: 當前可用AP
         type: integer
-      characters:
-        items:
-          $ref: '#/definitions/models.CardInPlay'
-        type: array
+      board:
+        allOf:
+        - $ref: '#/definitions/models.Board'
+        description: 玩家的場地區域
       deck:
+        description: 卡組區
         items:
           $ref: '#/definitions/models.Card'
         type: array
       energy:
         additionalProperties:
           type: integer
+        description: 各種顏色能源數量
         type: object
-      events:
-        items:
-          $ref: '#/definitions/models.CardInPlay'
-        type: array
       extra_draw_used:
         description: 本回合是否已使用額外抽卡
         type: boolean
-      fields:
-        items:
-          $ref: '#/definitions/models.CardInPlay'
-        type: array
       graveyard:
+        description: 墓地（場外區的別名，為了兼容）
         items:
           $ref: '#/definitions/models.Card'
         type: array
       hand:
+        description: 手牌
         items:
           $ref: '#/definitions/models.Card'
         type: array
       id:
         type: string
       life_area:
-        description: 生命區：7張背面朝上的卡片，遊戲開始時從卡組頂部設置
+        description: 生命區：7張背面朝上的卡片
         items:
           $ref: '#/definitions/models.Card'
         type: array
       max_ap:
+        description: 本回合最大AP
         type: integer
       removed_cards:
+        description: 移除的卡片（移除區的別名，為了兼容）
         items:
           $ref: '#/definitions/models.Card'
         type: array
@@ -261,9 +275,11 @@ definitions:
   models.Position:
     properties:
       slot:
+        description: 在該區域中的位置索引 (0-3 for front_line/energy_line)
         type: integer
       zone:
-        type: integer
+        description: '"front_line", "energy_line", "outside_area", "remove_area"'
+        type: string
     type: object
   ua_services_game-battle-service_internal_service.ActionResponse:
     properties:
@@ -402,6 +418,43 @@ info:
   title: UA Game Battle Service API
   version: "1.0"
 paths:
+  /game-info/{gameId}:
+    get:
+      description: Get game information including join status from Redis
+      parameters:
+      - description: Game ID
+        in: path
+        name: gameId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  additionalProperties: true
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      summary: Get game info from Redis
+      tags:
+      - games
   /games:
     post:
       consumes:
@@ -445,6 +498,10 @@ paths:
         in: path
         name: gameId
         required: true
+        type: string
+      - description: Bearer token (optional, can use global auth instead)
+        in: header
+        name: Authorization
         type: string
       produces:
       - application/json
@@ -496,6 +553,10 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/internal_handler.ActionRequest'
+      - description: Bearer token (optional, can use global auth instead)
+        in: header
+        name: Authorization
+        type: string
       produces:
       - application/json
       responses:
@@ -537,6 +598,10 @@ paths:
         in: path
         name: gameId
         required: true
+        type: string
+      - description: Bearer token (optional, can use global auth instead)
+        in: header
+        name: Authorization
         type: string
       produces:
       - application/json
@@ -588,6 +653,10 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/internal_handler.MulliganRequest'
+      - description: Bearer token (optional, can use global auth instead)
+        in: header
+        name: Authorization
+        type: string
       produces:
       - application/json
       responses:
@@ -630,6 +699,10 @@ paths:
         name: gameId
         required: true
         type: string
+      - description: Bearer token (optional, can use global auth instead)
+        in: header
+        name: Authorization
+        type: string
       produces:
       - application/json
       responses:
@@ -668,6 +741,10 @@ paths:
         name: gameId
         required: true
         type: string
+      - description: Bearer token (optional, can use global auth instead)
+        in: header
+        name: Authorization
+        type: string
       produces:
       - application/json
       responses:
@@ -704,6 +781,11 @@ paths:
   /games/active:
     get:
       description: Get all active games for the current player
+      parameters:
+      - description: Bearer token (optional, can use global auth instead)
+        in: header
+        name: Authorization
+        type: string
       produces:
       - application/json
       responses:
