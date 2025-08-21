@@ -393,10 +393,10 @@ func (s *userService) GetAchievements(ctx context.Context, userID uuid.UUID) (*A
 }
 
 func (s *userService) generateTokens(userID uuid.UUID) (string, string, error) {
-	// Generate access token (expires in 15 minutes)
+	// Generate access token (expires in 2 hours - to allow full game completion)
 	accessClaims := jwt.MapClaims{
 		"user_id": userID.String(),
-		"exp":     time.Now().Add(15 * time.Minute).Unix(),
+		"exp":     time.Now().Add(2 * time.Hour).Unix(),
 		"iat":     time.Now().Unix(),
 	}
 

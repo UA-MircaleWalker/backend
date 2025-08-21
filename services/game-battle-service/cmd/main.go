@@ -128,8 +128,10 @@ func setupRouter(cfg *config.Config, gameHandler *handler.GameHandler) *gin.Engi
 	
 	// Public info endpoint - separate path to avoid conflicts
 	api.GET("/game-info/:gameId", gameHandler.GetGameInfo)
+	api.GET("/games/:gameId/turn-info", gameHandler.GetTurnInfo)
 	
 	logger.Info("Registered game info route at /api/v1/game-info/:gameId")
+	logger.Info("Registered turn info route at /api/v1/games/:gameId/turn-info")
 	
 	// Protected endpoints with auth middleware
 	authGames := api.Group("/games")

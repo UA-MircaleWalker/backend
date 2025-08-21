@@ -18,6 +18,7 @@ type GameEngine interface {
 	PerformMulligan(ctx context.Context, req *MulliganRequest) error
 	ProcessAction(ctx context.Context, gameID uuid.UUID, action *models.GameAction) (*ActionResult, error)
 	GetGameState(ctx context.Context, gameID uuid.UUID) (*models.GameState, error)
+	LoadGameState(ctx context.Context, gameID uuid.UUID, gameState *models.GameState) error
 	ValidateAction(ctx context.Context, gameState *models.GameState, action *models.GameAction) error
 	AdvancePhase(ctx context.Context, gameID uuid.UUID) (*models.GameState, error)
 	CheckWinCondition(ctx context.Context, gameState *models.GameState) (*WinCondition, error)
@@ -127,15 +128,16 @@ func (e *gameEngine) InitializeGame(ctx context.Context, req *InitGameRequest) (
 		Energy:   make(map[string]int),
 		Hand:     []models.Card{},
 		Deck:     req.Player1.Deck,
-		LifeArea: []models.Card{}, // 將在調度後設置7張卡
 		Board: models.Board{
 			FrontLine:   make([]models.CardInPlay, 0, 4), // 前線：最多4張
 			EnergyLine:  make([]models.CardInPlay, 0, 4), // 能源線：最多4張
 			OutsideArea: []models.Card{},                 // 場外區
 			RemoveArea:  []models.Card{},                 // 移除區
+			LifeArea:    []models.Card{},                 // 生命區：將在調度後設置7張卡
+			Graveyard:   []models.Card{},                 // 墓地
+			PublicArea:  []models.Card{},                 // 公開區域：暫時放置卡片
+			HiddenArea:  []models.Card{},                 // 隱藏區域：暫時放置卡片
 		},
-		Graveyard:     []models.Card{}, // 新增墨地欄位
-		RemovedCards:  []models.Card{}, // 新增移除卡片欄位
 		ExtraDrawUsed: false,
 	}
 
@@ -147,15 +149,16 @@ func (e *gameEngine) InitializeGame(ctx context.Context, req *InitGameRequest) (
 		Energy:   make(map[string]int),
 		Hand:     []models.Card{},
 		Deck:     req.Player2.Deck,
-		LifeArea: []models.Card{}, // 將在調度後設置7張卡
 		Board: models.Board{
 			FrontLine:   make([]models.CardInPlay, 0, 4), // 前線：最多4張
 			EnergyLine:  make([]models.CardInPlay, 0, 4), // 能源線：最多4張
 			OutsideArea: []models.Card{},                 // 場外區
 			RemoveArea:  []models.Card{},                 // 移除區
+			LifeArea:    []models.Card{},                 // 生命區：將在調度後設置7張卡
+			Graveyard:   []models.Card{},                 // 墓地
+			PublicArea:  []models.Card{},                 // 公開區域：暫時放置卡片
+			HiddenArea:  []models.Card{},                 // 隱藏區域：暫時放置卡片
 		},
-		Graveyard:     []models.Card{}, // 新增墨地欄位
-		RemovedCards:  []models.Card{}, // 新增移除卡片欄位
 		ExtraDrawUsed: false,
 	}
 
@@ -289,7 +292,7 @@ func (e *gameEngine) autoSetupLifeArea(ctx context.Context, gameID uuid.UUID) er
 			if len(player.Deck) > 0 {
 				card := player.Deck[0]
 				player.Deck = player.Deck[1:]
-				player.LifeArea = append(player.LifeArea, card)
+				player.Board.LifeArea = append(player.Board.LifeArea, card)
 			} else {
 				return fmt.Errorf("insufficient cards in deck for player %s", player.ID.String())
 			}
@@ -336,8 +339,16 @@ func (e *gameEngine) startFirstTurn(ctx context.Context, gameState *models.GameS
 // ProcessAction 處理遊戲動作
 // 驗證動作合法性、執行動作、記錄日誌、檢查勝負條件
 func (e *gameEngine) ProcessAction(ctx context.Context, gameID uuid.UUID, action *models.GameAction) (*ActionResult, error) {
+	logger.Debug("ProcessAction called",
+		zap.String("game_id", gameID.String()),
+		zap.String("action_type", action.ActionType),
+		zap.Int("total_games_in_memory", len(e.gameStates)))
+	
 	gameState, exists := e.gameStates[gameID]
 	if !exists {
+		logger.Debug("Game not found in engine memory",
+			zap.String("game_id", gameID.String()),
+			zap.Int("total_games_in_memory", len(e.gameStates)))
 		return nil, fmt.Errorf("game not found")
 	}
 
@@ -407,6 +418,26 @@ func (e *gameEngine) GetGameState(ctx context.Context, gameID uuid.UUID) (*model
 	return gameState, nil
 }
 
+// LoadGameState 將遊戲狀態載入到引擎記憶體中
+// 用於從資料庫恢復遊戲狀態到引擎記憶體
+func (e *gameEngine) LoadGameState(ctx context.Context, gameID uuid.UUID, gameState *models.GameState) error {
+	if gameState == nil {
+		return fmt.Errorf("game state cannot be nil")
+	}
+
+	// Store the game state in engine memory
+	e.gameStates[gameID] = gameState
+
+	logger.Info("Game state loaded into engine memory",
+		zap.String("game_id", gameID.String()),
+		zap.Int("turn", gameState.Turn),
+		zap.String("phase", gameState.Phase.String()),
+		zap.String("active_player", gameState.ActivePlayer.String()),
+		zap.Int("total_games_in_memory", len(e.gameStates)))
+
+	return nil
+}
+
 // ValidateAction 驗證遊戲動作是否合法
 // 檢查是否為當前玩家回合、玩家是否存在、動作類型是否有效
 func (e *gameEngine) ValidateAction(ctx context.Context, gameState *models.GameState, action *models.GameAction) error {
@@ -420,6 +451,8 @@ func (e *gameEngine) ValidateAction(ctx context.Context, gameState *models.GameS
 	}
 
 	switch action.ActionType {
+	case models.ActionTypeDrawCard:
+		return e.validateDrawCard(gameState, action)
 	case models.ActionTypeExtraDraw:
 		return e.validateExtraDraw(gameState, action)
 	case models.ActionTypePlayCard:
@@ -468,7 +501,7 @@ func (e *gameEngine) CheckWinCondition(ctx context.Context, gameState *models.Ga
 		opponentID := e.getOpponentID(gameState, playerID)
 
 		// 勝利條件1：對手的生命區卡片數量降至0張
-		if len(player.LifeArea) == 0 {
+		if len(player.Board.LifeArea) == 0 {
 			return &WinCondition{
 				HasWinner: true,
 				Winner:    opponentID,
@@ -539,10 +572,10 @@ func (e *gameEngine) dealDamageToPlayer(gameState *models.GameState, playerID uu
 	player := gameState.Players[playerID]
 
 	cardsRevealed := 0
-	for cardsRevealed < damage && len(player.LifeArea) > 0 {
+	for cardsRevealed < damage && len(player.Board.LifeArea) > 0 {
 		// 從生命區頂部翻開一張卡片
-		card := player.LifeArea[0]
-		player.LifeArea = player.LifeArea[1:]
+		card := player.Board.LifeArea[0]
+		player.Board.LifeArea = player.Board.LifeArea[1:]
 		cardsRevealed++
 
 		// 檢查觸發效果
@@ -566,13 +599,13 @@ func (e *gameEngine) dealDamageToPlayer(gameState *models.GameState, playerID uu
 		}
 
 		// 將卡片放入場外區
-		player.Graveyard = append(player.Graveyard, card)
+		player.Board.Graveyard = append(player.Board.Graveyard, card)
 
 		// 記錄生命區卡片被移除的事件
 		result.EventsTriggered = append(result.EventsTriggered, GameEvent{
 			Type:      "LIFE_AREA_DAMAGED",
 			Source:    &playerID,
-			Data:      map[string]interface{}{"card": card, "remaining_life": len(player.LifeArea)},
+			Data:      map[string]interface{}{"card": card, "remaining_life": len(player.Board.LifeArea)},
 			Timestamp: time.Now(),
 		})
 	}
@@ -581,7 +614,7 @@ func (e *gameEngine) dealDamageToPlayer(gameState *models.GameState, playerID uu
 		zap.String("player", playerID.String()),
 		zap.Int("damage", damage),
 		zap.Int("cards_revealed", cardsRevealed),
-		zap.Int("remaining_life", len(player.LifeArea)))
+		zap.Int("remaining_life", len(player.Board.LifeArea)))
 }
 
 // shuffleDeck 洗牌
@@ -641,6 +674,9 @@ func (e *gameEngine) processExtraDraw(gameState *models.GameState, action *model
 		return
 	}
 
+	// 記錄當前階段，檢查是否為START階段
+	wasStartPhase := gameState.Phase == models.StartPhase
+
 	// 扣除1點AP
 	player.AP -= 1
 	player.ExtraDrawUsed = true
@@ -653,6 +689,21 @@ func (e *gameEngine) processExtraDraw(gameState *models.GameState, action *model
 			Data:      map[string]interface{}{"ap_cost": 1},
 			Timestamp: time.Now(),
 		})
+
+		// 如果是在START階段使用額外抽牌，自動推進到MOVE階段
+		if wasStartPhase {
+			gameState.Phase = models.MovePhase
+			result.NextPhase = &gameState.Phase
+			result.EventsTriggered = append(result.EventsTriggered, GameEvent{
+				Type:      "PHASE_ADVANCED_BY_EXTRA_DRAW",
+				Source:    &action.PlayerID,
+				Data:      map[string]interface{}{"from_phase": "START", "to_phase": "MOVE"},
+				Timestamp: time.Now(),
+			})
+			logger.Debug("EXTRA_DRAW in START phase, auto-advancing to MOVE phase",
+				zap.String("game_id", action.GameID.String()),
+				zap.String("player_id", action.PlayerID.String()))
+		}
 	} else {
 		result.Success = false
 		result.Error = "no cards left in deck"
@@ -754,7 +805,7 @@ func (e *gameEngine) processPlayCard(gameState *models.GameState, action *models
 			}
 			e.ApplyCardEffect(context.Background(), gameState, &effect, &playedCard)
 		}
-		player.Graveyard = append(player.Graveyard, playedCard)
+		player.Board.Graveyard = append(player.Board.Graveyard, playedCard)
 	}
 
 	result.EventsTriggered = append(result.EventsTriggered, GameEvent{
@@ -889,7 +940,7 @@ func (e *gameEngine) processAttack(gameState *models.GameState, action *models.G
 					opponent.Board.OutsideArea = append(opponent.Board.OutsideArea, defender.Card)
 					// 從前線移除
 					opponent.Board.FrontLine = append(opponent.Board.FrontLine[:i], opponent.Board.FrontLine[i+1:]...)
-					opponent.Graveyard = append(opponent.Graveyard, defender.Card)
+					opponent.Board.Graveyard = append(opponent.Board.Graveyard, defender.Card)
 					break
 				}
 			}
@@ -940,7 +991,7 @@ func (e *gameEngine) processMoveCharacter(gameState *models.GameState, action *m
 // processEndPhase 處理結束階段動作
 // 推進到下一個階段並更新遊戲狀態
 func (e *gameEngine) processEndPhase(gameState *models.GameState, action *models.GameAction, result *ActionResult) {
-	newGameState, err := e.AdvancePhase(context.Background(), uuid.New())
+	newGameState, err := e.AdvancePhase(context.Background(), action.GameID)
 	if err != nil {
 		result.Success = false
 		result.Error = err.Error()
@@ -1034,6 +1085,15 @@ func (e *gameEngine) getOpponentID(gameState *models.GameState, playerID uuid.UU
 		if id != playerID {
 			return &id
 		}
+	}
+	return nil
+}
+
+// validateDrawCard 驗證基本抽牌動作
+// 通常在起始階段進行，除了先攻第一回合
+func (e *gameEngine) validateDrawCard(gameState *models.GameState, action *models.GameAction) error {
+	if gameState.Phase != models.StartPhase {
+		return fmt.Errorf("can only draw cards during start phase")
 	}
 	return nil
 }

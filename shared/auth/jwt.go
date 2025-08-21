@@ -41,7 +41,7 @@ func generateAccessToken(userID uuid.UUID, username string, secret string) (stri
 		UserID:   userID,
 		Username: username,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(15 * time.Minute)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(2 * time.Hour)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			NotBefore: jwt.NewNumericDate(time.Now()),
 			Issuer:    "ua-game",

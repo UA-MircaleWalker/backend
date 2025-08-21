@@ -85,10 +85,7 @@ type Player struct {
 	Energy        map[string]int `json:"energy"`         // 各種顏色能源數量
 	Hand          []Card         `json:"hand"`           // 手牌
 	Deck          []Card         `json:"deck"`           // 卡組區
-	LifeArea      []Card         `json:"life_area"`      // 生命區：7張背面朝上的卡片
 	Board         Board          `json:"board"`          // 玩家的場地區域
-	Graveyard     []Card         `json:"graveyard"`      // 墓地（場外區的別名，為了兼容）
-	RemovedCards  []Card         `json:"removed_cards"`  // 移除的卡片（移除區的別名，為了兼容）
 	ExtraDrawUsed bool           `json:"extra_draw_used"` // 本回合是否已使用額外抽卡
 }
 
@@ -100,6 +97,10 @@ type Board struct {
 	EnergyLine  []CardInPlay `json:"energy_line"`  // 能源線：最多4張角色卡和場域卡
 	OutsideArea []Card       `json:"outside_area"` // 場外區：退場的卡片
 	RemoveArea  []Card       `json:"remove_area"`  // 移除區：被移除的卡片
+	LifeArea    []Card       `json:"life_area"`    // 生命區：7張背面朝上的卡片
+	Graveyard   []Card       `json:"graveyard"`    // 墓地：已使用或被破壞的卡片
+	PublicArea  []Card       `json:"public_area"`  // 公開區域：暫時放置卡片的公開區域
+	HiddenArea  []Card       `json:"hidden_area"`  // 隱藏區域：暫時放置卡片的隱藏區域
 }
 
 type CardInPlay struct {

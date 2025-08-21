@@ -620,7 +620,7 @@ func (tm *turnManager) processEndPhase(ctx context.Context, gameState *models.Ga
 		// 目前自動移除最後面的牌，實際應該由玩家選擇
 		removedCards := player.Hand[8:]
 		player.Hand = player.Hand[:8]
-		player.RemovedCards = append(player.RemovedCards, removedCards...)
+		player.Board.RemoveArea = append(player.Board.RemoveArea, removedCards...)
 
 		logger.Debug("Hand limit exceeded, cards removed",
 			zap.String("player", gameState.ActivePlayer.String()),

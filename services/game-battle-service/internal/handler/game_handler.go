@@ -206,6 +206,19 @@ func (h *GameHandler) PlayAction(c *gin.Context) {
 
 	response, err := h.gameService.PlayAction(c.Request.Context(), req)
 	if err != nil {
+		// Handle specific error cases with appropriate HTTP status codes
+		if err.Error() == "game not found" {
+			utils.NotFoundResponse(c, "Game not found")
+			return
+		}
+		if err.Error() == "not your turn" {
+			utils.ErrorResponse(c, http.StatusForbidden, "Not your turn")
+			return
+		}
+		if err.Error() == "player not found" {
+			utils.ErrorResponse(c, http.StatusForbidden, "Player not part of this game")
+			return
+		}
 		utils.InternalServerErrorResponse(c, "Failed to play action: "+err.Error())
 		return
 	}
@@ -288,6 +301,37 @@ func (h *GameHandler) GetGameInfo(c *gin.Context) {
 	}
 
 	utils.SuccessResponse(c, gameInfo)
+}
+
+// @Summary Get current turn info
+// @Description Get current turn information to determine which player should act
+// @Tags games
+// @Produce json
+// @Param gameId path string true "Game ID"
+// @Success 200 {object} utils.Response{data=service.TurnInfoResponse}
+// @Failure 400 {object} utils.Response
+// @Failure 404 {object} utils.Response
+// @Failure 500 {object} utils.Response
+// @Router /games/{gameId}/turn-info [get]
+func (h *GameHandler) GetTurnInfo(c *gin.Context) {
+	gameIDStr := c.Param("gameId")
+	gameID, err := uuid.Parse(gameIDStr)
+	if err != nil {
+		utils.BadRequestResponse(c, "Invalid game ID")
+		return
+	}
+
+	turnInfo, err := h.gameService.GetTurnInfo(c.Request.Context(), gameID)
+	if err != nil {
+		if err.Error() == "game not found" {
+			utils.NotFoundResponse(c, "Game not found")
+			return
+		}
+		utils.InternalServerErrorResponse(c, "Failed to get turn info: "+err.Error())
+		return
+	}
+
+	utils.SuccessResponse(c, turnInfo)
 }
 
 // @Summary Get active games

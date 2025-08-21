@@ -22,6 +22,7 @@ type GameService interface {
 	PlayAction(ctx context.Context, req *PlayActionRequest) (*ActionResponse, error)
 	GetGame(ctx context.Context, gameID uuid.UUID, playerID uuid.UUID) (*GameResponse, error)
 	GetGameInfo(ctx context.Context, gameID uuid.UUID) (map[string]interface{}, error)
+	GetTurnInfo(ctx context.Context, gameID uuid.UUID) (*TurnInfoResponse, error)
 	GetActiveGames(ctx context.Context, playerID uuid.UUID) (*ActiveGamesResponse, error)
 	SurrenderGame(ctx context.Context, gameID uuid.UUID, playerID uuid.UUID) (*GameResponse, error)
 	ProcessGameEngine(ctx context.Context, gameID uuid.UUID) error
@@ -65,6 +66,18 @@ type ActionResponse struct {
 
 type ActiveGamesResponse struct {
 	Games []GameInfo `json:"games"`
+}
+
+type TurnInfoResponse struct {
+	GameID       uuid.UUID `json:"game_id"`
+	Turn         int       `json:"turn"`
+	Phase        models.Phase `json:"phase"`
+	ActivePlayer uuid.UUID `json:"active_player"`
+	Player1ID    uuid.UUID `json:"player1_id"`
+	Player2ID    uuid.UUID `json:"player2_id"`
+	IsPlayer1Turn bool     `json:"is_player1_turn"`
+	IsPlayer2Turn bool     `json:"is_player2_turn"`
+	GameStatus   models.GameStatus `json:"game_status"`
 }
 
 type GameInfo struct {
@@ -252,13 +265,16 @@ func (s *gameService) JoinGame(ctx context.Context, gameID uuid.UUID, playerID u
 
 
 func (s *gameService) PlayAction(ctx context.Context, req *PlayActionRequest) (*ActionResponse, error) {
-	// Convert ActionData from []int to []byte
-	var actionDataBytes []byte
+	// Convert ActionData from []int to json.RawMessage
+	var actionDataJSON json.RawMessage
 	if len(req.ActionData) > 0 {
-		actionDataBytes = make([]byte, len(req.ActionData))
-		for i, v := range req.ActionData {
-			actionDataBytes[i] = byte(v)
+		actionDataBytes, err := json.Marshal(req.ActionData)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal action data: %w", err)
 		}
+		actionDataJSON = json.RawMessage(actionDataBytes)
+	} else {
+		actionDataJSON = json.RawMessage("[]")
 	}
 
 	// Create game action
@@ -267,7 +283,7 @@ func (s *gameService) PlayAction(ctx context.Context, req *PlayActionRequest) (*
 		GameID:     req.GameID,
 		PlayerID:   req.PlayerID,
 		ActionType: req.ActionType,
-		ActionData: actionDataBytes,
+		ActionData: actionDataJSON,
 		Turn:       0,                 // Will be set by engine
 		Phase:      models.StartPhase, // Will be set by engine
 		Timestamp:  time.Now(),
@@ -278,7 +294,43 @@ func (s *gameService) PlayAction(ctx context.Context, req *PlayActionRequest) (*
 	// Process action through game engine
 	result, err := s.gameEngine.ProcessAction(ctx, req.GameID, action)
 	if err != nil {
-		return nil, fmt.Errorf("failed to process action: %w", err)
+		// If game not found in engine memory, try to load from database
+		if err.Error() == "game not found" {
+			// Try to get game state from database and load it into engine
+			game, dbErr := s.gameRepo.GetGame(ctx, req.GameID)
+			if dbErr != nil {
+				return nil, fmt.Errorf("game not found")
+			}
+
+			// Deserialize game state and load into engine
+			if len(game.GameState) > 0 {
+				var gameState models.GameState
+				if unmarshalErr := json.Unmarshal(game.GameState, &gameState); unmarshalErr != nil {
+					return nil, fmt.Errorf("failed to load game state: %w", unmarshalErr)
+				}
+
+				// Load game state into engine memory (we need to add this method to engine)
+				if loadErr := s.loadGameStateIntoEngine(ctx, req.GameID, &gameState); loadErr != nil {
+					return nil, fmt.Errorf("failed to load game into engine: %w", loadErr)
+				}
+
+				// Retry the action
+				result, err = s.gameEngine.ProcessAction(ctx, req.GameID, action)
+				if err != nil {
+					return nil, err
+				}
+			} else {
+				return nil, fmt.Errorf("game state not found")
+			}
+		} else {
+			// Return original error to preserve error type for proper HTTP status handling
+			return nil, err
+		}
+	}
+
+	// Check if the action was not successful and return as error for proper HTTP status handling
+	if !result.Success {
+		return nil, fmt.Errorf(result.Error)
 	}
 
 	// Save action to database
@@ -355,6 +407,11 @@ func (s *gameService) GetGame(ctx context.Context, gameID uuid.UUID, playerID uu
 		gameState = &models.GameState{}
 		if err := json.Unmarshal(game.GameState, gameState); err != nil {
 			logger.Error("Failed to deserialize game state", zap.Error(err))
+		} else {
+			// Load game state into engine memory for future actions
+			if loadErr := s.loadGameStateIntoEngine(ctx, gameID, gameState); loadErr != nil {
+				logger.Error("Failed to load game state into engine", zap.Error(loadErr))
+			}
 		}
 	}
 
@@ -371,6 +428,27 @@ func (s *gameService) GetGameInfo(ctx context.Context, gameID uuid.UUID) (map[st
 	}
 
 	return gameInfo, nil
+}
+
+func (s *gameService) GetTurnInfo(ctx context.Context, gameID uuid.UUID) (*TurnInfoResponse, error) {
+	game, err := s.gameRepo.GetGame(ctx, gameID)
+	if err != nil {
+		return nil, fmt.Errorf("game not found")
+	}
+
+	response := &TurnInfoResponse{
+		GameID:       gameID,
+		Turn:         game.CurrentTurn,
+		Phase:        game.Phase,
+		ActivePlayer: game.ActivePlayer,
+		Player1ID:    game.Player1ID,
+		Player2ID:    game.Player2ID,
+		IsPlayer1Turn: game.ActivePlayer == game.Player1ID,
+		IsPlayer2Turn: game.ActivePlayer == game.Player2ID,
+		GameStatus:   game.Status,
+	}
+
+	return response, nil
 }
 
 func (s *gameService) GetActiveGames(ctx context.Context, playerID uuid.UUID) (*ActiveGamesResponse, error) {
@@ -529,6 +607,12 @@ func (s *gameService) ProcessGameEngine(ctx context.Context, gameID uuid.UUID) e
 	}
 
 	return nil
+}
+
+// loadGameStateIntoEngine loads a game state from database into the engine memory
+func (s *gameService) loadGameStateIntoEngine(ctx context.Context, gameID uuid.UUID, gameState *models.GameState) error {
+	// Use the LoadGameState method from the engine interface
+	return s.gameEngine.LoadGameState(ctx, gameID, gameState)
 }
 
 func (s *gameService) modelToGameInfo(game *models.Game) *GameInfo {

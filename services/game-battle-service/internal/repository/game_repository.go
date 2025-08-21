@@ -211,8 +211,9 @@ func (r *gameRepository) SaveGameState(ctx context.Context, gameID uuid.UUID, ga
 		return fmt.Errorf("failed to save game state to Redis: %w", err)
 	}
 
-	query := "UPDATE games SET game_state = $1, updated_at = $2 WHERE id = $3"
-	_, err = r.db.ExecContext(ctx, query, gameStateJSON, time.Now(), gameID)
+	// Update both game state JSON and basic game fields (turn, phase, active_player)
+	query := "UPDATE games SET game_state = $1, current_turn = $2, phase = $3, active_player = $4, updated_at = $5 WHERE id = $6"
+	_, err = r.db.ExecContext(ctx, query, gameStateJSON, gameState.Turn, gameState.Phase.String(), gameState.ActivePlayer, time.Now(), gameID)
 	if err != nil {
 		return fmt.Errorf("failed to save game state to database: %w", err)
 	}
