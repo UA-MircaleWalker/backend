@@ -218,6 +218,20 @@ func (r *gameRepository) SaveGameState(ctx context.Context, gameID uuid.UUID, ga
 		return fmt.Errorf("failed to save game state to database: %w", err)
 	}
 
+	// 同步更新 Redis 中 game info 的 phase 和其他相關欄位
+	gameInfoKey := fmt.Sprintf("game:%s:info", gameID.String())
+	gameInfoFields := map[string]interface{}{
+		"current_turn":  gameState.Turn,
+		"phase":         gameState.Phase.String(),
+		"active_player": gameState.ActivePlayer.String(),
+		"updated_at":    time.Now().Format(time.RFC3339),
+	}
+
+	if err := r.redis.HMSet(ctx, gameInfoKey, gameInfoFields).Err(); err != nil {
+		return fmt.Errorf("failed to update game info phase in Redis: %w", err)
+	}
+	r.redis.Expire(ctx, gameInfoKey, 24*time.Hour)
+
 	return nil
 }
 
