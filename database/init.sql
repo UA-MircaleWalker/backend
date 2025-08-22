@@ -85,7 +85,7 @@ CREATE TABLE decks (
     total_cards INTEGER DEFAULT 0 CHECK (total_cards >= 0),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    CONSTRAINT valid_deck_size CHECK (total_cards >= 50 AND total_cards <= 50), -- Union Arena uses exactly 50 cards
+    CONSTRAINT valid_deck_size CHECK (total_cards = 50), -- Union Arena uses exactly 50 cards
     CONSTRAINT one_active_deck_per_user EXCLUDE (user_id WITH =) WHERE (is_active = true)
 );
 
