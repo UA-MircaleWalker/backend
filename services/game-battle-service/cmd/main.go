@@ -23,6 +23,7 @@ import (
 	"ua/shared/logger"
 	"ua/shared/middleware"
 	"ua/shared/redis"
+	"ua/shared/websocket"
 )
 
 // @title UA Game Battle Service API
@@ -71,7 +72,11 @@ func main() {
 	gameService := service.NewGameService(gameRepo, gameEngine)
 	gameHandler := handler.NewGameHandler(gameService)
 
-	router := setupRouter(cfg, gameHandler)
+	// Initialize WebSocket Hub
+	wsHub := websocket.NewHub()
+	go wsHub.Run()
+
+	router := setupRouter(cfg, gameHandler, wsHub)
 
 	srv := &http.Server{
 		Addr:    ":" + cfg.Port,
@@ -101,7 +106,7 @@ func main() {
 	logger.Info("Game Battle Service exited")
 }
 
-func setupRouter(cfg *config.Config, gameHandler *handler.GameHandler) *gin.Engine {
+func setupRouter(cfg *config.Config, gameHandler *handler.GameHandler, wsHub *websocket.Hub) *gin.Engine {
 	if cfg.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -120,6 +125,12 @@ func setupRouter(cfg *config.Config, gameHandler *handler.GameHandler) *gin.Engi
 	})
 
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+
+	// WebSocket endpoint with WebSocket-compatible auth middleware
+	wsGroup := r.Group("/")
+	wsGroup.Use(middleware.WebSocketAuthMiddleware(cfg.JWTSecret))
+	wsGroup.GET("ws", wsHub.HandleWebSocket)
+	logger.Info("Registered WebSocket route at /ws with WebSocket auth")
 
 	api := r.Group("/api/v1")
 	
